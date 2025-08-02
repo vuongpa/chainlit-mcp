@@ -46,7 +46,7 @@ fi
 echo "🎉 Setup complete! Starting the application..."
 echo ""
 echo "The application will start in a few seconds..."
-echo "Open your browser to http://localhost:8000 when ready."
+echo "Open your browser to http://127.0.0.1:8000 when ready."
 echo ""
 
 # Use uv run to run the application in the virtual environment

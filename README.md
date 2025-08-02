@@ -20,7 +20,7 @@ This sample app enables intelligent, dynamic interactions by retrieving relevant
 
 ## Setup
 
-Install dependencies and run the application using uv:
+Run quick_start.sh file or install dependencies and run the application using uv:
 
 ```bash
 # Sync dependencies
