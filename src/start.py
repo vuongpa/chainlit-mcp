@@ -4,7 +4,7 @@ from chat_app import ChatApp
 
 ChatApp.starters = [
 cl.Starter(
-    label="ALT Test",
+    label="What is the ALT Test?",
     message="What is the ALT test and what does it reveal about liver health?",
     icon="/public/chat-bot-svgrepo-com.svg",
 ),
