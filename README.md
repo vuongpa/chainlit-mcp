@@ -31,8 +31,7 @@ uv venv .venv
 source .venv/bin/activate
 
 # Set API keys
-Create .env file and add your API keys. 
-You can rename .env.sample file to .env.
+Rename .env.sample file to .env file and add your API keys. 
 
 # Start the application
 uv run src/main.py
@@ -70,7 +69,7 @@ ELEVENLABS_API_KEY=
 ELEVENLABS_VOICE_ID=
 ```
 
-2.Open chat settings and enable TTS
+2.Open chat settings and enable TTS.
 
 ![Sample](/assets/settings.png?raw=true "TTS")
 
