@@ -30,16 +30,20 @@ uv sync
 uv venv .venv
 source .venv/bin/activate
 
+# Set API keys
+Create .env file and add your API keys. 
+You can rename .env.sample file to .env.
+
 # Start the application
-uv run python src/main.py
+uv run src/main.py
 ```
 
 ## To Use Your Prompt & Data
 
 As an example, the repository includes a sample medical document.
 
-- Prompt: prompt/mycv.txt
-- PDF Source: rag_source/mycv/Tansu's CV.pdf
+- Prompt: prompt/liver_tests.txt
+- PDF Source: rag_source/liver_tests/umj0081-0030.pdf
 
 To use your own prompt and data, follow these steps:
 
@@ -54,6 +58,21 @@ rag = Rag(
     chat_settings=chat_settings
 )
 ```
+
+## Text to Speech (TTS)
+
+To use TTS:
+
+1.Add below environment variables.
+
+```bash
+ELEVENLABS_API_KEY=
+ELEVENLABS_VOICE_ID=
+```
+
+2.Open chat settings and enable TTS
+
+![Sample](/assets/settings.png?raw=true "TTS")
 
 ## Contextualization
 
@@ -81,8 +100,7 @@ To switch to OpenAI embeddings, update the RAG instance in the src/chainlit_star
 
 ```python
 rag = ChainlitRag.rag = Rag(
-    inputFolder="mycv",
-    promptFile="mycv.txt",
+    ...
     chat_settings=chat_settings,
     embedding=EMBEDDINGS.openai,  # Use OpenAI embeddings
     output_formatter=JsonOutputParser(pydantic_object=ResultWithFollowup)
