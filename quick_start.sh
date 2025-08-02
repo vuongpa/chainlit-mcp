@@ -17,18 +17,6 @@ fi
 
 echo "✅ uv is installed"
 
-# Check Python version
-python_version=$(uv python --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -1 || echo "0.0")
-required_version="3.9"
-
-if ! python -c "import sys; exit(0 if sys.version_info >= (3, 9) else 1)" 2>/dev/null; then
-    echo "❌ Python 3.9+ is required. Current version: $python_version"
-    echo "Please install Python 3.9 or higher and try again."
-    exit 1
-fi
-
-echo "✅ Python version is compatible"
-
 # Create virtual environment and sync dependencies
 echo "📦 Creating virtual environment and installing dependencies..."
 uv sync

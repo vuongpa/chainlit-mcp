@@ -47,8 +47,8 @@
                 "authLogin": {
                     "title": "Login to access the app.",
                     "form": {
-                        "email": "Your name",
-                        "password": "Random Password",
+                        "email": "Email address",
+                        "password": "Password",
                         "noAccount": "Don't have an account?",
                         "alreadyHaveAccount": "Already have an account?",
                         "signup": "Sign Up",
