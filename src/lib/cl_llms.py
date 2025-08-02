@@ -1,5 +1,6 @@
-import chainlit as cl  
+import chainlit as cl
 from pydantic import BaseModel, Field
+
 
 def get_chat_profiles():
     return [    
@@ -11,11 +12,6 @@ def get_chat_profiles():
         cl.ChatProfile(
             name="Antrophic",
             markdown_description="Antrophic GPT",
-            icon="https://picsum.photos/250",
-        ),
-        cl.ChatProfile(
-            name="Cohere",
-            markdown_description="Cohere GPT",
             icon="https://picsum.photos/250",
         ),
         cl.ChatProfile(

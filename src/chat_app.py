@@ -1,35 +1,34 @@
-from langchain.schema.runnable.config import RunnableConfig
-import uuid
-import chainlit as cl
-import os
-from chainlit.input_widget import Select, Switch, Slider
-from lib.cl_llms import get_chat_profiles
-from lib.rag import Rag, LLMS, UptatableChatHistory
-from lib.core import ChatSettings
-from langchain_core.language_models import LanguageModelLike
-from typing import Optional
-from langchain_core.messages import HumanMessage, AIMessage
-from pydantic import BaseModel, Field
-from typing import List, Union, Optional
-import os
-from io import BytesIO
 import base64
-import httpx
-from lib.tts import text_to_speech, speech_to_text
+import os
+import uuid
 from io import BytesIO
-from typing import IO
-from openai import AsyncOpenAI
+from typing import IO, List, Optional, Union
+
+import chainlit as cl
+import httpx
 from chainlit.element import ElementBased
+from chainlit.input_widget import Select, Slider, Switch
+from langchain.schema.runnable.config import RunnableConfig
+from langchain_core.language_models import LanguageModelLike
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
+from openai import AsyncOpenAI
+from pydantic import BaseModel, Field
+
+from lib.cl_llms import get_chat_profiles
+from lib.core import ChatSettings
 from lib.follow_up import ResultWithFollowup
+from lib.rag import LLMS, Rag, UptatableChatHistory
+from lib.tts import speech_to_text, text_to_speech
 
 openai_client = AsyncOpenAI()
 
 class ChatApp:
     starters = []
     
-    def get_rag() -> Rag:
-        return cl.user_session.get("rag", None)
+    @staticmethod
+    def get_rag() -> Optional[Rag]:
+        return cl.user_session.get("rag")
     
     def create_rag():
         chat_settings = ChatApp.get_rag().chat_settings if ChatApp.get_rag() else ChatSettings()

@@ -1,0 +1,29 @@
+[project]
+name = "chatbot-with-rag"
+version = "0.1.0"
+description = "RAG (Retrieval-Augmented Generation) ChatBot app built using Chainlit, LangChain, Faiss, and FastAPI"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {file = "LICENSE"}
+authors = [
+    {name = "aibrite", email = "contact@aibrite.com"},
+]
+keywords = ["rag", "chatbot", "langchain", "chainlit", "faiss", "fastapi", "ai", "llm"]
+
+dependencies = [
+    "chainlit>=1.2.0",
+    "elevenlabs>=2.8.1",
+    "faiss-cpu>=1.11.0.post1",
+    "fastapi>=0.112.4",
+    "fastapi-cli>=0.0.8",
+    "langchain>=0.3.27",
+    "langchain-anthropic>=0.3.18",
+    "langchain-chroma>=0.2.2",
+    "langchain-community>=0.3.21",
+    "langchain-core>=0.3.72",
+    "langchain-huggingface>=0.3.1",
+    "langchain-ollama>=0.3.6",
+    "langchain-openai>=0.3.28",
+    "pydantic>=2.9.2",
+    "pypdf>=5.9.0",
+]

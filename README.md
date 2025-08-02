@@ -1,8 +1,9 @@
-# RAG ChatBot App
-## Description:
-RAG (Retrieval-Augmented Generation) ChatBot app built using Chainlit, LangChain, Faiss, and FastAPI. This app enables intelligent, dynamic interactions by retrieving relevant information from a vector store and addressing users personally based on their queries.
+# ChatBot with RAG App
 
-## Features:
+This sample app enables intelligent, dynamic interactions by retrieving relevant information from a vector store and addressing users personally based on their queries.
+
+## Features
+
 **Contextualization**: The bot can contextualize user questions and retrieve more relevant chunks from the vector store, improving the accuracy of its responses.
 
 **Reusable classes**: The app includes reusable classes for handling RAG, chat settings, chat history  and more.
@@ -17,34 +18,25 @@ RAG (Retrieval-Augmented Generation) ChatBot app built using Chainlit, LangChain
 
 ![Sample](/assets/home-screen.png?raw=true "Rag Demo using LangChain, Chainlit, Faiss & FastApi")
 
+## Setup
 
-## To Run:
-1. Clone the repository:
+Install dependencies and run the application using uv:
+
 ```bash
-git clone https://github.com/tansut/Rag-LangChain-Chainlit-FastApi.git
-```
-2. Create a virtual environment:
-```bash
-python -m venv .venv
+# Sync dependencies
+uv sync
+
+# Create virtual environment
+uv venv .venv
 source .venv/bin/activate
-```
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-4. Create .env file and set your API keys.
-```bash
-cp .env.sample .env
-```
-Create .env file and set your API keys. I included a sample as .env.sample. You don't need to set all of then API keys, just one of them is enough.
 
-5. Run the application:
-```bash
-python src/main.py
+# Start the application
+uv run python src/main.py
 ```
-Enter your name & and a random password.
-## To Use Your Prompt & Data:
-As an example, the repository includes my CV and a sample prompt. 
+
+## To Use Your Prompt & Data
+
+As an example, the repository includes a sample medical document.
 
 - Prompt: prompt/mycv.txt
 - PDF Source: rag_source/mycv/Tansu's CV.pdf
@@ -64,22 +56,29 @@ rag = Rag(
 ```
 
 ## Contextualization
+
 You can enable or disable contextualization by setting the environment variable:
 
 ```bash
 CONTEXTUALIZATION=True
 ```
-### What is contextualization? 
+
+### What is contextualization?
+
 Contextualization allows the chatbot to better understand user queries by maintaining a reference to previous interactions, improving the relevance of retrieved information.
 
 ## Embeddings
+
 There are two options for generating embeddings: OpenAI or HuggingFace (the default is OpenAI).
 
 To configure the HuggingFace embedding model, set the HUGGINGFACE_EMBED_MODEL environment variable with your desired model. For example:
+
 ```bash
 HUGGINGFACE_EMBED_MODEL=sentence-transformers/all-mpnet-base-v2
 ```
+
 To switch to OpenAI embeddings, update the RAG instance in the src/chainlit_start.py file as follows:
+
 ```python
 rag = ChainlitRag.rag = Rag(
     inputFolder="mycv",
@@ -89,9 +88,11 @@ rag = ChainlitRag.rag = Rag(
     output_formatter=JsonOutputParser(pydantic_object=ResultWithFollowup)
 )
 ```
+
 Make sure to set your OpenAI API key in your .env file if you choose OpenAI embeddings.
 
 ## More Info
+
 - [Chainlit Documentation](https://docs.chainlit.io/get-started/overview) - Learn more about Chainlit and how to customize it.
 - [LangChain Documentation](https://www.langchain.com/) - Understand how LangChain can be used for chaining AI models with various tools and services.
 - [Faiss Documentation](https://faiss.ai) – Explore how Faiss performs vector similarity search.

@@ -1,42 +1,41 @@
-from langchain_openai import ChatOpenAI
-from typing import Any, Dict, Union
-from langchain_core.runnables import Runnable, RunnablePassthrough
-from langchain_anthropic import ChatAnthropic
-from langchain_ollama import ChatOllama
-from langchain_cohere import ChatCohere
-import faiss
-from uuid import uuid4
-from langchain_community.docstore.in_memory import InMemoryDocstore
-from langchain_community.vectorstores import FAISS
 import os
 from enum import Enum
-from langchain_openai import OpenAIEmbeddings
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.document_loaders import PyPDFLoader, UnstructuredPDFLoader
+from operator import itemgetter
+from typing import Any, Dict, List, Optional, Union
+from uuid import uuid4
+
+import faiss
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains.retrieval import create_retrieval_chain
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_anthropic import ChatAnthropic
 from langchain_chroma import Chroma
 from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain.chains.retrieval import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_core.runnables import RunnableWithMessageHistory
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.language_models import LanguageModelLike
-from lib.core import ChatSettings
-from pydantic import BaseModel, Field
-from langchain_core.messages import BaseMessage
-from operator import itemgetter
-from typing import List, Union, Optional
+from langchain_community.docstore.in_memory import InMemoryDocstore
+from langchain_community.document_loaders import (PyPDFLoader,
+                                                  UnstructuredPDFLoader)
+from langchain_community.vectorstores import FAISS
 from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.runnables import ConfigurableFieldSpec
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda, Runnable, RunnableConfig
-from langchain_core.output_parsers import StrOutputParser, BaseLLMOutputParser
 from langchain_core.documents import Document
-from langchain_core.prompts import PromptTemplate, BasePromptTemplate, format_document
+from langchain_core.language_models import LanguageModelLike
+from langchain_core.messages import BaseMessage
+from langchain_core.output_parsers import BaseLLMOutputParser, StrOutputParser
+from langchain_core.prompts import (BasePromptTemplate, ChatPromptTemplate,
+                                    MessagesPlaceholder, PromptTemplate,
+                                    format_document)
+from langchain_core.runnables import (ConfigurableFieldSpec, Runnable,
+                                      RunnableConfig, RunnableLambda,
+                                      RunnablePassthrough,
+                                      RunnableWithMessageHistory)
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from pydantic import BaseModel, Field
 
+from lib.core import ChatSettings
 
-
-LLMS = Enum("LLMS", ["OPENAI", "ANTROPHIC", "COHERE", "OLLAMA"])
-EMBEDDINGS = Enum("EMBEDDINGS", ["openai", "cohere", "huggingface"])
+LLMS = Enum("LLMS", ["OPENAI", "ANTROPHIC", "OLLAMA"])
+EMBEDDINGS = Enum("EMBEDDINGS", ["openai", "huggingface"])
 
 class UptatableChatHistory(BaseChatMessageHistory, BaseModel):
     messages: List[BaseMessage] = Field(default_factory=list)
@@ -78,7 +77,6 @@ class Rag:
         self.llm_functions = {
             LLMS.OPENAI: ChatOpenAI,
             LLMS.ANTROPHIC: ChatAnthropic,
-            LLMS.COHERE: ChatCohere,
             LLMS.OLLAMA: ChatOllama,
         }
         self.contextualize_prompt = contextualize_prompt or (
