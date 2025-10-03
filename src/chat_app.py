@@ -20,6 +20,7 @@ from lib.core import ChatSettings
 from lib.follow_up import ResultWithFollowup
 from lib.rag import LLMS, Rag, UptatableChatHistory
 from lib.tts import speech_to_text, text_to_speech
+from lib.user_profile import get_user_profile_manager, get_current_user_id, get_current_session_id
 
 openai_client = AsyncOpenAI()
 
@@ -32,6 +33,7 @@ class ChatApp:
 
     def create_rag():
         chat_settings = ChatApp.get_rag().chat_settings if ChatApp.get_rag() else ChatSettings()
+        enable_mcp = os.getenv("ENABLE_MCP", "true").lower() == "true"
         rag: Rag
         if cl.user_session.get("follow_up"):
             rag = Rag(
@@ -39,12 +41,14 @@ class ChatApp:
                 promptFile="liver_tests.txt",
                 chat_settings=chat_settings,
                 output_formatter=JsonOutputParser(pydantic_object=ResultWithFollowup),
+                enable_mcp=enable_mcp
             )
         else:
             rag = Rag(
                 inputFolder="liver_tests",
                 promptFile="liver_tests_no_followup.txt",
                 chat_settings=chat_settings,
+                enable_mcp=enable_mcp
             )
         rag.initialize_store()
         cl.user_session.set("rag", rag) 
@@ -148,6 +152,17 @@ class ChatApp:
 
         chat_history.add_message(message=HumanMessage(content=message.content, id=message.id))
         chat_history.add_ai_message(message=AIMessage(content=ai_answer, id=uuid.uuid4().hex))
+
+        # Update user profile with interaction context
+        try:
+            profile_manager = await get_user_profile_manager()
+            user_id = get_current_user_id()
+            session_id = get_current_session_id()
+            await profile_manager.update_session_context(
+                user_id, session_id, message.content, ai_answer, "liver_health"
+            )
+        except Exception as e:
+            print(f"Error updating user profile: {e}")
 
         await response.send()
 

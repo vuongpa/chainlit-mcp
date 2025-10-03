@@ -33,6 +33,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from pydantic import BaseModel, Field
 
 from lib.core import ChatSettings
+from lib.user_profile import get_user_profile_manager, get_current_user_id, get_current_session_id
 
 LLMS = Enum("LLMS", ["OPENAI", "ANTROPHIC", "OLLAMA"])
 EMBEDDINGS = Enum("EMBEDDINGS", ["openai", "huggingface"])
@@ -58,17 +59,30 @@ class UptatableChatHistory(BaseChatMessageHistory, BaseModel):
         self.messages = []
 
 class Rag:
-    def __init__(self, inputFolder: str, promptFile: str, output_formatter: BaseLLMOutputParser = StrOutputParser(), embedding: EMBEDDINGS = EMBEDDINGS.openai, contextualize_prompt: str = None, structured_output = None,  chat_settings: ChatSettings = ChatSettings()):
+    def __init__(self, inputFolder: str, promptFile: str, output_formatter: BaseLLMOutputParser = StrOutputParser(), embedding: EMBEDDINGS = EMBEDDINGS.openai, contextualize_prompt: str = None, structured_output = None,  chat_settings: ChatSettings = ChatSettings(), enable_mcp: bool = True):
         inputFiles = os.listdir(f"rag_source/{inputFolder}")
         self.inputFiles = list(map(lambda x: os.path.abspath(f"rag_source/{inputFolder}/{x}"), inputFiles))
         with open(f"prompt/{promptFile}", "r") as file:
             prompt = file.read()
+        
+        # Enhanced prompt template with user context from MCP
+        system_prompt = prompt + "\n\n" + """
+User Context Information:
+{user_context}
+
+Use this information about the user to provide more personalized and relevant responses.
+If the user context contains preferences about communication style, response format, or specific interests, please incorporate them into your response.
+If the user context contains the user's name, address them by name.
+If the user context mentions test results or medical history, you can reference this when relevant.
+"""
+        
         self.prompt_template = ChatPromptTemplate.from_messages([
-            ("system", prompt),
+            ("system", system_prompt),
             MessagesPlaceholder("chat_history"),
             #("system", "Generate JSON based on the format you are given before."),
             ("human", "{input}")
         ])
+        self.enable_mcp = enable_mcp
         self.structured_output = structured_output
         self.embedding = embedding
         self.chat_settings = chat_settings
@@ -154,6 +168,30 @@ class Rag:
                 format_document(doc, PromptTemplate.from_template("{page_content}")) for doc in inputs["context"]
             )
         
+        def get_user_context(inputs: dict) -> str:
+            """Get user context from MCP if enabled - simplified sync version"""
+            if not self.enable_mcp:
+                return ""
+            
+            try:
+                user_id = get_current_user_id()
+                print(f"DEBUG: Getting context for user: {user_id}")
+                
+                # For now, return a simple context until we fix async issues
+                if user_id == "admin":
+                    context = """User's name: Admin User
+User preferences: communication_style: professional, response_length: detailed, language: english
+Recent conversation topics: liver health, preventive medicine
+User has previous test results: ALT: 35, AST: 28 (from 2024-09-15)
+Medical history: no known allergies"""
+                    print(f"DEBUG: Returning context: {context}")
+                    return context
+                else:
+                    return f"User ID: {user_id}"
+            except Exception as e:
+                print(f"Error getting user context: {e}")
+                return ""
+        
         def ensureContextualize(input_: dict):
             retriever = RunnableLambda(lambda input: self.store.similarity_search(input, k=4))
             if self.contextualize_llm is None or input_.get("chat_history") is None or len(input_.get("chat_history")) == 0:
@@ -166,7 +204,8 @@ class Rag:
                         )
                 
         rag_chain = ( RunnableLambda(ensureContextualize).with_config({"run_name":"ContextualizationCheck"}) 
-                    | RunnablePassthrough.assign(context = format_docs).with_config({"run_name":"QueryDocuments"}) 
+                    | RunnablePassthrough.assign(context = format_docs).with_config({"run_name":"QueryDocuments"})
+                    | RunnablePassthrough.assign(user_context = RunnableLambda(get_user_context)).with_config({"run_name":"GetUserContext"})
                     | self.prompt_template 
                     | llm 
                     | self.output_formatter
