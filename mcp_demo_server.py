@@ -23,25 +23,27 @@ class DemoUserProfileServer:
                 "preferences": {
                     "communication_style": "professional",
                     "response_length": "detailed", 
-                    "language": "english",
-                    "medical_history": "no known allergies",
-                    "interests": ["liver health", "preventive medicine"]
+                    "language": "vietnamese",
+                    "contact_preference": "email",
+                    "interests": ["order tracking", "subscription management"]
                 },
                 "history": [
                     {
                         "type": "chat",
                         "timestamp": "2024-10-01T10:00:00Z",
-                        "user_message": "What are normal liver enzyme levels?",
-                        "bot_response": "Normal ALT levels are typically below 40 U/L...",
-                        "topic": "liver_enzymes"
+                        "user_message": "Tôi cần kiểm tra trạng thái đơn hàng #OR12345.",
+                        "bot_response": "Đơn hàng #OR12345 đang ở trạng thái 'Đang vận chuyển' và dự kiến giao ngày 05/10.",
+                        "topic": "order_tracking"
                     }
                 ],
                 "custom_data": {
-                    "last_test_results": {
-                        "ALT": 35,
-                        "AST": 28,
-                        "test_date": "2024-09-15"
-                    }
+                    "last_orders": [
+                        {
+                            "order_id": "OR12345",
+                            "status": "shipping",
+                            "expected_delivery": "2024-10-05"
+                        }
+                    ]
                 }
             },
             "user123": {
@@ -52,7 +54,7 @@ class DemoUserProfileServer:
                     "communication_style": "casual",
                     "response_length": "concise",
                     "language": "english", 
-                    "concerns": ["family history of liver disease"]
+                    "interests": ["billing", "device setup"]
                 },
                 "history": [],
                 "custom_data": {}
@@ -92,8 +94,8 @@ class DemoUserProfileServer:
             return {"result": user_data.get("preferences", {})}
         elif "history" in query_lower or "previous" in query_lower:
             return {"result": user_data.get("history", [])}
-        elif "test" in query_lower and "result" in query_lower:
-            return {"result": user_data.get("custom_data", {}).get("last_test_results", {})}
+        elif "order" in query_lower:
+            return {"result": user_data.get("custom_data", {}).get("last_orders", [])}
         elif "name" in query_lower:
             return {"result": {"name": user_data.get("name", "")}}
         elif "email" in query_lower:

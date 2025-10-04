@@ -39,10 +39,10 @@ uv run src/main.py
 
 ## To Use Your Prompt & Data
 
-As an example, the repository includes a sample medical document.
+By default, the repository is configured with the Oreka.vn customer support knowledge base.
 
-- Prompt: prompt/liver_tests.txt
-- PDF Source: rag_source/liver_tests/umj0081-0030.pdf
+- Prompt: prompt/oreka_faqs.txt
+- Knowledge source: rag_source/oreka_faqs/zendesk-2025-10-04T06-54-33.md
 
 To use your own prompt and data, follow these steps:
 

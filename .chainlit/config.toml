@@ -57,7 +57,7 @@ edit_message = true
 
 [UI]
 # Name of the assistant.
-name = "Liver Enzymes Assistant"
+name = "Oreka Support Assistant"
 
 login_page_image = "/public/aibrite-logo-svg"
 

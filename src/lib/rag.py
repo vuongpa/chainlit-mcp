@@ -12,8 +12,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_chroma import Chroma
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_community.docstore.in_memory import InMemoryDocstore
-from langchain_community.document_loaders import (PyPDFLoader,
-                                                  UnstructuredPDFLoader)
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_community.vectorstores import FAISS
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.documents import Document
@@ -148,9 +147,15 @@ If the user context mentions test results or medical history, you can reference 
             )
             print(f"Loading from local store {dir}")
         else:
-            loaders = [PyPDFLoader(f"{file}") for file in self.inputFiles]
             documents = []
-            for loader in loaders:
+            for file in self.inputFiles:
+                ext = os.path.splitext(file)[1].lower()
+                if ext == ".pdf":
+                    loader = PyPDFLoader(file)
+                elif ext in {".md", ".txt", ".json"}:
+                    loader = TextLoader(file, encoding="utf-8")
+                else:
+                    raise ValueError(f"Unsupported document type for RAG source: {file}")
                 documents.extend(loader.load())
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunkSize, chunk_overlap=chunkOverlap)
             splits = text_splitter.split_documents(documents)
@@ -180,10 +185,10 @@ If the user context mentions test results or medical history, you can reference 
                 # For now, return a simple context until we fix async issues
                 if user_id == "admin":
                     context = """User's name: Admin User
-User preferences: communication_style: professional, response_length: detailed, language: english
-Recent conversation topics: liver health, preventive medicine
-User has previous test results: ALT: 35, AST: 28 (from 2024-09-15)
-Medical history: no known allergies"""
+User preferences: communication_style: professional, response_length: detailed, language: vietnamese
+Recent conversation topics: Oreka account setup, order tracking
+Customer tier: business
+Preferred support channel: email"""
                     print(f"DEBUG: Returning context: {context}")
                     return context
                 else:

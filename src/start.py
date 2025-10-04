@@ -4,32 +4,32 @@ from chat_app import ChatApp
 
 ChatApp.starters = [
 cl.Starter(
-    label="What is the ALT Test?",
-    message="What is the ALT test and what does it reveal about liver health?",
+    label="Tra cứu trạng thái đơn hàng",
+    message="Đơn hàng Oreka của tôi đã thanh toán rồi, bao giờ giao vậy?",
     icon="/public/chat-bot-svgrepo-com.svg",
 ),
 
 cl.Starter(
-    label="AST:ALT Ratio",
-    message="How is the AST:ALT ratio used to distinguish liver disease types?",
+    label="Kích hoạt tài khoản doanh nghiệp",
+    message="Tôi cần hướng dẫn kích hoạt tài khoản Oreka Business cho công ty.",
     icon="/public/chat-bot-svgrepo-com.svg",
 ),
 
 cl.Starter(
-    label="Liver Enzymes",
-    message="Which liver enzymes are most helpful for diagnosing different liver conditions?",
+    label="Chính sách đổi trả",
+    message="Oreka có hỗ trợ đổi trả thiết bị lỗi trong bao nhiêu ngày?",
     icon="/public/chat-bot-svgrepo-com.svg",
 ),
 
 cl.Starter(
-    label="Cirrhosis Risk",
-    message="Can enzyme levels or ratios help assess the risk or presence of cirrhosis?",
+    label="Hóa đơn và chứng từ",
+    message="Tôi cần xuất hóa đơn VAT cho đơn hàng Oreka, làm sao?",
     icon="/public/chat-bot-svgrepo-com.svg",
 ),
 
 cl.Starter(
-    label="Alcohol vs NAFLD",
-    message="How can liver tests help differentiate alcoholic liver disease from NAFLD?",
+    label="Kênh hỗ trợ khẩn",
+    message="Có hotline nào để liên hệ khi nền tảng Oreka bị gián đoạn không?",
     icon="/public/chat-bot-svgrepo-com.svg",
 )]
 

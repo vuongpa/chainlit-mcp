@@ -37,16 +37,16 @@ class ChatApp:
         rag: Rag
         if cl.user_session.get("follow_up"):
             rag = Rag(
-                inputFolder="liver_tests",
-                promptFile="liver_tests.txt",
+                inputFolder="oreka_faqs",
+                promptFile="oreka_faqs.txt",
                 chat_settings=chat_settings,
                 output_formatter=JsonOutputParser(pydantic_object=ResultWithFollowup),
                 enable_mcp=enable_mcp
             )
         else:
             rag = Rag(
-                inputFolder="liver_tests",
-                promptFile="liver_tests_no_followup.txt",
+                inputFolder="oreka_faqs",
+                promptFile="oreka_faqs_no_followup.txt",
                 chat_settings=chat_settings,
                 enable_mcp=enable_mcp
             )
@@ -159,7 +159,7 @@ class ChatApp:
             user_id = get_current_user_id()
             session_id = get_current_session_id()
             await profile_manager.update_session_context(
-                user_id, session_id, message.content, ai_answer, "liver_health"
+                user_id, session_id, message.content, ai_answer, "oreka_support"
             )
         except Exception as e:
             print(f"Error updating user profile: {e}")
