@@ -1,6 +1,8 @@
 import chainlit as cl
-
 from chat_app import ChatApp
+from lib.auth_manager import AuthManager
+
+auth_manager = AuthManager()
 
 ChatApp.starters = [
 cl.Starter(
@@ -35,6 +37,27 @@ cl.Starter(
 
 @cl.password_auth_callback
 def auth_callback(username: str, password: str):
-        return cl.User(
-            identifier=username, metadata={"role": "admin", "provider": "credentials"}
-        )
+    try:
+        user_profile = auth_manager.authenticate_user(username, password)
+        if user_profile:
+            return cl.User(
+                identifier=user_profile.username,
+                metadata={
+                    "user_id": str(user_profile.id),
+                    "store_id": str(user_profile.storeId) if user_profile.storeId else None,
+                    "email": user_profile.email,
+                    "role": user_profile.role,
+                    "full_name": user_profile.full_name,
+                    "nickname": user_profile.nickname,
+                    "provider": user_profile.provider.value,  # Convert enum to string
+                    "isActive": user_profile.isActive,
+                    "verified": user_profile.verified,
+                    "language": user_profile.language
+                }
+            )
+        else:
+            return None
+            
+    except Exception as e:
+        print(f"Authentication error: {e}")
+        return None
