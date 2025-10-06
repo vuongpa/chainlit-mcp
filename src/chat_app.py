@@ -210,6 +210,19 @@ class ChatApp:
         chat_history = UptatableChatHistory()     
         cl.user_session.set("chat_history", chat_history)
         cl.user_session.set("session_id", f"{chat_profile}/{uuid.uuid4().hex}")
+        
+        # Initialize user profile manager with MCP
+        try:
+            profile_manager = await get_user_profile_manager()
+            user_id = get_current_user_id()
+            session_id = get_current_session_id()
+            
+            # Pre-warm the user session in MCP
+            await profile_manager.get_or_create_session(user_id, session_id)
+            print(f"✓ Initialized MCP user profile for user: {user_id}, session: {session_id}")
+        except Exception as e:
+            print(f"Warning: Could not initialize MCP user profile: {e}")
+        
         rag = ChatApp.create_rag()
 
         await cl.ChatSettings(

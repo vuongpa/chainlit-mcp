@@ -177,7 +177,11 @@ class UserProfileManager:
     
     async def _load_session_from_cache(self, user_identifier: str, session_id: str) -> Optional[UserSession]:
         """Load session from disk cache"""
-        cache_file = self.cache_dir / f"{user_identifier}_{session_id}.json"
+        # Sanitize user_identifier and session_id for filename safety
+        safe_user_id = user_identifier.replace("@", "_at_").replace("/", "_").replace("\\", "_")
+        safe_session_id = session_id.replace("/", "_").replace("\\", "_").replace(":", "_")
+        
+        cache_file = self.cache_dir / f"{safe_user_id}_{safe_session_id}.json"
         
         if not cache_file.exists():
             return None
@@ -196,9 +200,16 @@ class UserProfileManager:
     
     async def _save_session_to_cache(self, session: UserSession):
         """Save session to disk cache"""
-        cache_file = self.cache_dir / f"{session.user_id}_{session.session_id}.json"
+        # Sanitize user_id and session_id for filename safety
+        safe_user_id = session.user_id.replace("@", "_at_").replace("/", "_").replace("\\", "_")
+        safe_session_id = session.session_id.replace("/", "_").replace("\\", "_").replace(":", "_")
+        
+        cache_file = self.cache_dir / f"{safe_user_id}_{safe_session_id}.json"
         
         try:
+            # Ensure the cache directory exists
+            cache_file.parent.mkdir(parents=True, exist_ok=True)
+            
             # Convert datetime and set to JSON-serializable formats
             data = session.dict()
             data['last_updated'] = data['last_updated'].isoformat()
@@ -206,8 +217,14 @@ class UserProfileManager:
             
             with open(cache_file, 'w') as f:
                 json.dump(data, f, indent=2)
+                
+            print(f"✓ Saved session cache: {cache_file.name}")
         except Exception as e:
-            print(f"Error saving session cache: {e}")
+            print(f"Error saving session cache to {cache_file}: {e}")
+            # Also print the original identifiers for debugging
+            print(f"  Original user_id: {session.user_id}")
+            print(f"  Original session_id: {session.session_id}")
+            print(f"  Sanitized filename: {cache_file.name}")
     
     async def cleanup_old_sessions(self, max_age_days: int = 30):
         """Clean up old cached sessions"""
@@ -252,7 +269,12 @@ def get_current_user_id() -> str:
     """Get current user ID from Chainlit session"""
     user = cl.user_session.get("user")
     if user and hasattr(user, 'identifier'):
-        return user.identifier
+        user_id = user.identifier
+        # Map known users to demo server user IDs
+        if user_id == "admin":
+            return "admin"  # This matches the demo server
+        # For other users, you might want to map them or create new entries
+        return user_id
     return "anonymous"
 
 

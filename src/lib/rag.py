@@ -1,3 +1,4 @@
+import asyncio
 import os
 from enum import Enum
 from operator import itemgetter
@@ -173,29 +174,56 @@ If the user context mentions test results or medical history, you can reference 
                 format_document(doc, PromptTemplate.from_template("{page_content}")) for doc in inputs["context"]
             )
         
-        def get_user_context(inputs: dict) -> str:
-            """Get user context from MCP if enabled - simplified sync version"""
+        async def get_user_context_async(inputs: dict) -> str:
+            """Get user context from MCP if enabled"""
             if not self.enable_mcp:
                 return ""
             
             try:
                 user_id = get_current_user_id()
-                print(f"DEBUG: Getting context for user: {user_id}")
+                session_id = get_current_session_id()
+                print(f"DEBUG: Getting context for user: {user_id}, session: {session_id}")
                 
-                # For now, return a simple context until we fix async issues
-                if user_id == "admin":
-                    context = """User's name: Admin User
-User preferences: communication_style: professional, response_length: detailed, language: vietnamese
-Recent conversation topics: Oreka account setup, order tracking
-Customer tier: business
-Preferred support channel: email"""
-                    print(f"DEBUG: Returning context: {context}")
-                    return context
-                else:
-                    return f"User ID: {user_id}"
+                # Get user profile manager and retrieve context
+                profile_manager = await get_user_profile_manager()
+                context = await profile_manager.get_user_context_for_rag(user_id, session_id)
+                
+                print(f"DEBUG: Retrieved MCP context: {context}")
+                return context if context else f"User ID: {user_id}"
+                
             except Exception as e:
                 print(f"Error getting user context: {e}")
-                return ""
+                return f"User ID: {get_current_user_id() if 'get_current_user_id' in globals() else 'unknown'}"
+        
+        def get_user_context(inputs: dict) -> str:
+            """Sync wrapper for user context retrieval"""
+            try:
+                # Try to use existing event loop if available
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # If loop is already running, we can't use run_until_complete
+                        # Fall back to basic user ID for now
+                        user_id = get_current_user_id()
+                        return f"User ID: {user_id}"
+                    else:
+                        return loop.run_until_complete(get_user_context_async(inputs))
+                except RuntimeError:
+                    # No event loop, create a new one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        return loop.run_until_complete(get_user_context_async(inputs))
+                    finally:
+                        loop.close()
+                        
+            except Exception as e:
+                print(f"Error in sync user context wrapper: {e}")
+                try:
+                    user_id = get_current_user_id()
+                    return f"User ID: {user_id}"
+                except:
+                    return "User context unavailable"
         
         def ensureContextualize(input_: dict):
             retriever = RunnableLambda(lambda input: self.store.similarity_search(input, k=4))

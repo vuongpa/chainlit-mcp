@@ -243,7 +243,9 @@ async def get_mcp_client() -> MCPClient:
     """Get or create global MCP client instance"""
     global _mcp_client
     if _mcp_client is None:
-        _mcp_client = MCPClient.from_config()
+        # Try to load from config file in the project root
+        config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mcp_config.json")
+        _mcp_client = MCPClient.from_config(config_path)
         await _mcp_client.initialize()
     return _mcp_client
 

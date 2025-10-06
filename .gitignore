@@ -165,3 +165,4 @@ vector_store
 rag_source/secure*
 prompt/secure*
 .files
+/user_cache
