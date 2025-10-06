@@ -174,8 +174,45 @@ class Rag:
                 session_id = get_current_session_id()
                 print(f"DEBUG: Getting context for user: {user_id}, session: {session_id}")
                 
+                # Get base user context
                 profile_manager = await get_user_profile_manager()
                 context = await profile_manager.get_user_context_for_rag(user_id, session_id)
+                
+                # Check if query is about orders and get order info if needed
+                query_text = inputs.get("input", "").lower()
+                order_keywords = ["đơn hàng", "order", "giao hàng", "delivery", "vận chuyển", "ship", "thanh toán", "payment", "sắp giao", "chờ giao", "pending"]
+                
+                if any(keyword in query_text for keyword in order_keywords):
+                    try:
+                        print(f"DEBUG: Query about orders detected, getting order context...")
+                        from lib.mcp_client import get_mcp_client
+                        mcp_client = await get_mcp_client()
+                        
+                        # Get order dashboard for user
+                        order_dashboard = await mcp_client.get_user_order_dashboard(user_id)
+                        if order_dashboard and "dashboard" in order_dashboard:
+                            dashboard_data = order_dashboard["dashboard"]
+                            order_context = f"\nOrder Information:\n"
+                            order_context += f"- Pending orders: {dashboard_data.get('pending_orders', {}).get('count', 0)}\n"
+                            order_context += f"- Unpaid amount: {dashboard_data.get('financial', {}).get('unpaid_amount', 0):,} VND\n"
+                            order_context += f"- Upcoming deliveries (7 days): {dashboard_data.get('deliveries', {}).get('upcoming_7_days', 0)}\n"
+                            
+                            # Add recent orders info
+                            recent_orders = dashboard_data.get('recent_orders', [])
+                            if recent_orders:
+                                order_context += f"- Recent orders:\n"
+                                for order in recent_orders[:3]:  # Top 3
+                                    order_context += f"  * {order.get('order_id', 'N/A')} ({order.get('status', 'unknown')}) - {order.get('total_value', 0):,} VND\n"
+                            
+                            context = (context or "") + order_context
+                        else:
+                            context = (context or "") + "\nOrder Information: No order data available for this user."
+                        
+                        await mcp_client.close()
+                        
+                    except Exception as order_error:
+                        print(f"DEBUG: Error getting order context: {order_error}")
+                        context = (context or "") + f"\nOrder Information: Unable to retrieve order data (Error: {str(order_error)})"
                 
                 print(f"DEBUG: Retrieved MCP context: {context}")
                 return context if context else f"User ID: {user_id}"

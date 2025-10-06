@@ -6,6 +6,10 @@ from contextlib import asynccontextmanager
 
 import httpx
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 
 class MCPServerConfig(BaseModel):
@@ -118,6 +122,90 @@ class MCPClient:
                 print(f"Error querying server {srv_name}: {e}")
         
         return None
+    
+    # Order Management Methods
+    async def get_pending_orders_count(self, user_id: str = None, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+        """Lấy số lượng đơn hàng đang chờ giao"""
+        try:
+            params = {}
+            if user_id:
+                params["user_id"] = user_id
+            
+            result = await self._query_server(server_name, "get_pending_orders_count", params)
+            return result
+        except Exception as e:
+            print(f"Error getting pending orders count: {e}")
+            return None
+    
+    async def get_pending_payment_amount(self, user_id: str = None, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+        """Lấy tổng số tiền phải thanh toán"""
+        try:
+            params = {}
+            if user_id:
+                params["user_id"] = user_id
+            
+            result = await self._query_server(server_name, "get_pending_payment_amount", params)
+            return result
+        except Exception as e:
+            print(f"Error getting pending payment amount: {e}")
+            return None
+    
+    async def get_delivery_estimates(self, user_id: str = None, days_ahead: int = 30, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+        """Lấy dự kiến ngày giao hàng"""
+        try:
+            params = {"days_ahead": days_ahead}
+            if user_id:
+                params["user_id"] = user_id
+            
+            result = await self._query_server(server_name, "get_delivery_estimates", params)
+            return result
+        except Exception as e:
+            print(f"Error getting delivery estimates: {e}")
+            return None
+    
+    async def get_order_summary(self, user_id: str = None, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+        """Lấy tổng quan về đơn hàng"""
+        try:
+            params = {}
+            if user_id:
+                params["user_id"] = user_id
+            
+            result = await self._query_server(server_name, "get_order_summary", params)
+            return result
+        except Exception as e:
+            print(f"Error getting order summary: {e}")
+            return None
+    
+    async def get_recent_orders(self, user_id: str = None, limit: int = 10, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+        """Lấy danh sách đơn hàng gần đây"""
+        try:
+            params = {"limit": limit}
+            if user_id:
+                params["user_id"] = user_id
+            
+            result = await self._query_server(server_name, "get_recent_orders", params)
+            return result
+        except Exception as e:
+            print(f"Error getting recent orders: {e}")
+            return None
+    
+    async def get_user_order_dashboard(self, user_id: str, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+        """Lấy dashboard tổng hợp thông tin đơn hàng"""
+        try:
+            result = await self._query_server(server_name, "get_user_order_dashboard", {"user_id": user_id})
+            return result
+        except Exception as e:
+            print(f"Error getting order dashboard: {e}")
+            return None
+    
+    async def query_order_data(self, user_id: str, query: str, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+        """Trả lời câu hỏi về đơn hàng"""
+        try:
+            result = await self._query_server(server_name, "query_order_data", {"user_id": user_id, "query": query})
+            return result
+        except Exception as e:
+            print(f"Error querying order data: {e}")
+            return None
     
     async def _query_server(self, server_name: str, method: str, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         if server_name not in self.active_connections:
