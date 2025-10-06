@@ -1,9 +1,9 @@
 {
   "mcp_servers": [
     {
-      "name": "demo_user_profile",
+      "name": "user_profile_balance_server",
       "command": "/Users/vuong/Documents/Workspace/chatbot-with-rag/.venv/bin/python",
-      "args": ["mcp_demo_server.py"],
+      "args": ["/Users/vuong/Documents/Workspace/chatbot-with-rag/mcp_user_server.py"],
       "env": {}
     }
   ]

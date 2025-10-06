@@ -2,29 +2,22 @@ import asyncio
 import os
 from enum import Enum
 from operator import itemgetter
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Union
 from uuid import uuid4
-
 import faiss
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.chains.retrieval import create_retrieval_chain
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_anthropic import ChatAnthropic
-from langchain_chroma import Chroma
-from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_community.vectorstores import FAISS
 from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.documents import Document
 from langchain_core.language_models import LanguageModelLike
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import BaseLLMOutputParser, StrOutputParser
-from langchain_core.prompts import (BasePromptTemplate, ChatPromptTemplate,
+from langchain_core.prompts import (ChatPromptTemplate,
                                     MessagesPlaceholder, PromptTemplate,
                                     format_document)
-from langchain_core.runnables import (ConfigurableFieldSpec, Runnable,
-                                      RunnableConfig, RunnableLambda,
+from langchain_core.runnables import (RunnableLambda,
                                       RunnablePassthrough,
                                       RunnableWithMessageHistory)
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -64,17 +57,15 @@ class Rag:
         self.inputFiles = list(map(lambda x: os.path.abspath(f"rag_source/{inputFolder}/{x}"), inputFiles))
         with open(f"prompt/{promptFile}", "r") as file:
             prompt = file.read()
-        
-        # Enhanced prompt template with user context from MCP
         system_prompt = prompt + "\n\n" + """
-User Context Information:
-{user_context}
+            User Context Information:
+            {user_context}
 
-Use this information about the user to provide more personalized and relevant responses.
-If the user context contains preferences about communication style, response format, or specific interests, please incorporate them into your response.
-If the user context contains the user's name, address them by name.
-If the user context mentions test results or medical history, you can reference this when relevant.
-"""
+            Use this information about the user to provide more personalized and relevant responses.
+            If the user context contains preferences about communication style, response format, or specific interests, please incorporate them into your response.
+            If the user context contains the user's name, address them by name.
+            If the user context mentions test results or medical history, you can reference this when relevant.
+            """
         
         self.prompt_template = ChatPromptTemplate.from_messages([
             ("system", system_prompt),
@@ -103,7 +94,6 @@ If the user context mentions test results or medical history, you can reference 
             [
                 ("system", self.contextualize_prompt),
                 MessagesPlaceholder("chat_history"),
-                # ("system", "Do NOT answer the question, just reformulate it if needed and otherwise return it as is."),
                 ("human", "Latest Question: {input}")
             ]
         )
@@ -184,7 +174,6 @@ If the user context mentions test results or medical history, you can reference 
                 session_id = get_current_session_id()
                 print(f"DEBUG: Getting context for user: {user_id}, session: {session_id}")
                 
-                # Get user profile manager and retrieve context
                 profile_manager = await get_user_profile_manager()
                 context = await profile_manager.get_user_context_for_rag(user_id, session_id)
                 
@@ -198,18 +187,14 @@ If the user context mentions test results or medical history, you can reference 
         def get_user_context(inputs: dict) -> str:
             """Sync wrapper for user context retrieval"""
             try:
-                # Try to use existing event loop if available
                 try:
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
-                        # If loop is already running, we can't use run_until_complete
-                        # Fall back to basic user ID for now
                         user_id = get_current_user_id()
                         return f"User ID: {user_id}"
                     else:
                         return loop.run_until_complete(get_user_context_async(inputs))
                 except RuntimeError:
-                    # No event loop, create a new one
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                     try:

@@ -1,5 +1,4 @@
 import json
-import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Set
 from pathlib import Path
@@ -148,6 +147,24 @@ class UserProfileManager:
             if relevant_prefs:
                 prefs_str = ', '.join([f"{k}: {v}" for k, v in relevant_prefs.items()])
                 context_parts.append(f"User preferences: {prefs_str}")
+            
+            # Add balance information for authenticated users
+            if user_identifier != "anonymous" and self._mcp_client:
+                try:
+                    balance_result = await self._mcp_client.query_user_data(
+                        user_identifier, 
+                        "balance điểm 02 information"
+                    )
+                    if balance_result and 'result' in balance_result:
+                        balance_info = balance_result['result']
+                        if 'balance' in balance_info and balance_info['balance']:
+                            balance_data = balance_info['balance']
+                            context_parts.append(
+                                f"User's balance: {balance_data['formatted']} điểm 02, "
+                                f"{balance_data['points_formatted']} points"
+                            )
+                except Exception as e:
+                    print(f"Could not fetch balance info: {e}")
         
         # Add recent conversation topics
         if session.active_topics:
@@ -176,8 +193,6 @@ class UserProfileManager:
             return None
     
     async def _load_session_from_cache(self, user_identifier: str, session_id: str) -> Optional[UserSession]:
-        """Load session from disk cache"""
-        # Sanitize user_identifier and session_id for filename safety
         safe_user_id = user_identifier.replace("@", "_at_").replace("/", "_").replace("\\", "_")
         safe_session_id = session_id.replace("/", "_").replace("\\", "_").replace(":", "_")
         
@@ -189,9 +204,7 @@ class UserProfileManager:
         try:
             with open(cache_file, 'r') as f:
                 data = json.load(f)
-                # Convert datetime strings back to datetime objects
                 data['last_updated'] = datetime.fromisoformat(data['last_updated'])
-                # Convert set back from list
                 data['active_topics'] = set(data.get('active_topics', []))
                 return UserSession(**data)
         except Exception as e:
@@ -199,38 +212,26 @@ class UserProfileManager:
             return None
     
     async def _save_session_to_cache(self, session: UserSession):
-        """Save session to disk cache"""
-        # Sanitize user_id and session_id for filename safety
         safe_user_id = session.user_id.replace("@", "_at_").replace("/", "_").replace("\\", "_")
         safe_session_id = session.session_id.replace("/", "_").replace("\\", "_").replace(":", "_")
         
         cache_file = self.cache_dir / f"{safe_user_id}_{safe_session_id}.json"
         
         try:
-            # Ensure the cache directory exists
             cache_file.parent.mkdir(parents=True, exist_ok=True)
             
-            # Convert datetime and set to JSON-serializable formats
             data = session.dict()
             data['last_updated'] = data['last_updated'].isoformat()
             data['active_topics'] = list(data['active_topics'])
             
             with open(cache_file, 'w') as f:
                 json.dump(data, f, indent=2)
-                
-            print(f"✓ Saved session cache: {cache_file.name}")
         except Exception as e:
-            print(f"Error saving session cache to {cache_file}: {e}")
-            # Also print the original identifiers for debugging
-            print(f"  Original user_id: {session.user_id}")
-            print(f"  Original session_id: {session.session_id}")
-            print(f"  Sanitized filename: {cache_file.name}")
+            print(f"Error saving session cache: {e}")
     
     async def cleanup_old_sessions(self, max_age_days: int = 30):
-        """Clean up old cached sessions"""
         cutoff_date = datetime.now() - timedelta(days=max_age_days)
         
-        # Clean memory cache
         to_remove = []
         for key, session in self._session_cache.items():
             if session.last_updated < cutoff_date:
@@ -239,7 +240,6 @@ class UserProfileManager:
         for key in to_remove:
             del self._session_cache[key]
         
-        # Clean disk cache
         for cache_file in self.cache_dir.glob("*.json"):
             try:
                 if cache_file.stat().st_mtime < cutoff_date.timestamp():
@@ -248,16 +248,12 @@ class UserProfileManager:
                 print(f"Error cleaning cache file {cache_file}: {e}")
     
     async def close(self):
-        """Clean up resources"""
         if self._mcp_client:
             await self._mcp_client.close()
 
 
-# Global user profile manager
 _user_profile_manager: Optional[UserProfileManager] = None
-
 async def get_user_profile_manager() -> UserProfileManager:
-    """Get or create global user profile manager"""
     global _user_profile_manager
     if _user_profile_manager is None:
         _user_profile_manager = UserProfileManager()
@@ -266,18 +262,13 @@ async def get_user_profile_manager() -> UserProfileManager:
 
 
 def get_current_user_id() -> str:
-    """Get current user ID from Chainlit session"""
     user = cl.user_session.get("user")
     if user and hasattr(user, 'identifier'):
         user_id = user.identifier
-        # Map known users to demo server user IDs
-        if user_id == "admin":
-            return "admin"  # This matches the demo server
-        # For other users, you might want to map them or create new entries
+        # Return the actual user identifier (email/username)
         return user_id
     return "anonymous"
 
 
 def get_current_session_id() -> str:
-    """Get current session ID"""
     return cl.user_session.get("session_id", "default")

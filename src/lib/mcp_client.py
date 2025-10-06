@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from contextlib import asynccontextmanager
 
 import httpx
@@ -9,16 +9,14 @@ from pydantic import BaseModel, Field
 
 
 class MCPServerConfig(BaseModel):
-    """Configuration for MCP server connection"""
     name: str
     command: str
     args: List[str] = Field(default_factory=list)
     env: Dict[str, str] = Field(default_factory=dict)
-    url: Optional[str] = None  # For HTTP-based MCP servers
+    url: Optional[str] = None
 
 
 class UserProfile(BaseModel):
-    """User profile data from MCP"""
     user_id: str
     name: Optional[str] = None
     email: Optional[str] = None
@@ -28,15 +26,12 @@ class UserProfile(BaseModel):
 
 
 class MCPClient:
-    """Client for connecting to MCP servers and retrieving user information"""
-    
     def __init__(self, servers: List[MCPServerConfig] = None):
         self.servers = servers or []
         self.active_connections = {}
         self._user_cache = {}
         
     async def initialize(self):
-        """Initialize connections to MCP servers"""
         for server in self.servers:
             try:
                 await self._connect_to_server(server)
@@ -44,16 +39,13 @@ class MCPClient:
                 print(f"Failed to connect to MCP server {server.name}: {e}")
     
     async def _connect_to_server(self, server: MCPServerConfig):
-        """Connect to a specific MCP server"""
         if server.url:
-            # HTTP-based MCP server
             self.active_connections[server.name] = {
                 "type": "http",
                 "url": server.url,
                 "client": httpx.AsyncClient()
             }
         else:
-            # Process-based MCP server (stdio)
             process = await asyncio.create_subprocess_exec(
                 server.command,
                 *server.args,
@@ -68,19 +60,13 @@ class MCPClient:
             }
     
     async def get_user_profile(self, user_id: str, server_name: str = None) -> Optional[UserProfile]:
-        """Retrieve user profile from MCP server"""
-        # Check cache first
         cache_key = f"{server_name}:{user_id}" if server_name else user_id
         if cache_key in self._user_cache:
             return self._user_cache[cache_key]
-        
-        # Try to get from specified server or all servers
         servers_to_try = [server_name] if server_name else list(self.active_connections.keys())
-        
         for srv_name in servers_to_try:
             if srv_name not in self.active_connections:
                 continue
-                
             try:
                 profile_data = await self._query_server(srv_name, "get_user_profile", {"user_id": user_id})
                 if profile_data:
@@ -93,7 +79,6 @@ class MCPClient:
         return None
     
     async def get_user_preferences(self, user_id: str, keys: List[str] = None) -> Dict[str, Any]:
-        """Get specific user preferences"""
         profile = await self.get_user_profile(user_id)
         if not profile:
             return {}
@@ -103,22 +88,18 @@ class MCPClient:
         return profile.preferences
     
     async def get_user_context(self, user_id: str, context_type: str = "chat") -> List[Dict[str, Any]]:
-        """Get user context/history for better responses"""
         profile = await self.get_user_profile(user_id)
         if not profile:
             return []
         
-        # Filter history by context type
         relevant_history = [
             item for item in profile.history 
             if item.get("type") == context_type
         ]
         
-        # Return last 10 items for context
         return relevant_history[-10:]
     
     async def query_user_data(self, user_id: str, query: str, server_name: str = None) -> Optional[Dict[str, Any]]:
-        """Query specific user data with natural language"""
         servers_to_try = [server_name] if server_name else list(self.active_connections.keys())
         
         for srv_name in servers_to_try:
@@ -139,14 +120,12 @@ class MCPClient:
         return None
     
     async def _query_server(self, server_name: str, method: str, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Send query to MCP server"""
         if server_name not in self.active_connections:
             return None
         
         connection = self.active_connections[server_name]
         
         if connection["type"] == "http":
-            # HTTP-based query
             client = connection["client"]
             try:
                 response = await client.post(
@@ -163,7 +142,6 @@ class MCPClient:
                 return None
         
         elif connection["type"] == "process":
-            # Process-based query (stdio)
             process = connection["process"]
             try:
                 request = {
@@ -177,7 +155,6 @@ class MCPClient:
                 process.stdin.write(request_data.encode())
                 await process.stdin.drain()
                 
-                # Read response
                 response_data = await process.stdout.readline()
                 response = json.loads(response_data.decode().strip())
                 
@@ -194,7 +171,6 @@ class MCPClient:
         return None
     
     async def close(self):
-        """Close all MCP connections"""
         for server_name, connection in self.active_connections.items():
             try:
                 if connection["type"] == "http":
@@ -210,10 +186,8 @@ class MCPClient:
     
     @classmethod
     def from_config(cls, config_path: str = None) -> 'MCPClient':
-        """Create MCPClient from configuration file or environment"""
         servers = []
         
-        # Try to load from config file
         if config_path and os.path.exists(config_path):
             try:
                 with open(config_path, 'r') as f:
@@ -223,7 +197,6 @@ class MCPClient:
             except Exception as e:
                 print(f"Error loading MCP config from {config_path}: {e}")
         
-        # Load from environment variables
         mcp_servers_env = os.getenv("MCP_SERVERS")
         if mcp_servers_env:
             try:
@@ -236,14 +209,11 @@ class MCPClient:
         return cls(servers)
 
 
-# Global MCP client instance
 _mcp_client: Optional[MCPClient] = None
 
 async def get_mcp_client() -> MCPClient:
-    """Get or create global MCP client instance"""
     global _mcp_client
     if _mcp_client is None:
-        # Try to load from config file in the project root
         config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mcp_config.json")
         _mcp_client = MCPClient.from_config(config_path)
         await _mcp_client.initialize()
@@ -251,10 +221,8 @@ async def get_mcp_client() -> MCPClient:
 
 @asynccontextmanager
 async def mcp_client_context():
-    """Context manager for MCP client lifecycle"""
     client = await get_mcp_client()
     try:
         yield client
     finally:
-        # Don't close here as it's a global instance
         pass

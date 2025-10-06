@@ -4,6 +4,7 @@ import sys
 import os
 from typing import Any, Dict, Optional
 
+# Add src to path to import our modules
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 from lib.order_services import BalanceService
@@ -12,7 +13,9 @@ from lib.db_services import UserService
 
 class UserProfileAndBalanceServer:
     """MCP Server for user profile and balance operations"""
+    
     def __init__(self):
+        # Initialize database connections
         pass
     
     async def handle_request(self, request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -177,17 +180,30 @@ class UserProfileAndBalanceServer:
         except Exception as e:
             return {"error": f"Failed to search balances: {str(e)}"}
     
+    # User Profile Methods
     async def get_user_profile(self, user_id: str) -> Dict[str, Any]:
+        """Get user profile information by UUID or email"""
         if not user_id:
             return {"error": "user_id is required"}
         
         try:
-            user_profile = UserService.get_user_profile(user_id)
+            user_profile = None
+            
+            # Try to get by UUID first
+            try:
+                user_profile = UserService.get_user_profile(user_id)
+            except:
+                # If not UUID, try to find by email
+                user = UserService.get_user_by_email(user_id)
+                if user:
+                    user_profile = UserService.get_user_profile(str(user.id))
+            
             if user_profile:
                 return {
                     "user_id": str(user_profile.id),
-                    "username": user_profile.username,
+                    "name": user_profile.full_name,
                     "email": user_profile.email,
+                    "username": user_profile.username,
                     "full_name": user_profile.full_name,
                     "nickname": user_profile.nickname,
                     "role": user_profile.role,
@@ -200,7 +216,42 @@ class UserProfileAndBalanceServer:
                     "storeId": str(user_profile.storeId) if user_profile.storeId else None,
                     "level": user_profile.level,
                     "created_at": user_profile.createdAt.isoformat() if user_profile.createdAt else None,
-                    "updated_at": user_profile.updatedAt.isoformat() if user_profile.updatedAt else None
+                    "updated_at": user_profile.updatedAt.isoformat() if user_profile.updatedAt else None,
+                    "preferences": {
+                        "communication_style": "professional",
+                        "language": user_profile.language or "vi",
+                        "response_length": "detailed"
+                    },
+                    "history": [],
+                    "custom_data": {}
+                }
+            elif user_id == "anonymous":
+                # Return default anonymous user profile
+                return {
+                    "user_id": "anonymous",
+                    "name": "Khách hàng",
+                    "email": None,
+                    "username": "anonymous",
+                    "full_name": "Khách hàng",
+                    "nickname": None,
+                    "role": "guest",
+                    "firstName": "Khách",
+                    "lastName": "hàng",
+                    "phone": None,
+                    "language": "vi",
+                    "isActive": True,
+                    "verified": False,
+                    "storeId": None,
+                    "level": None,
+                    "created_at": None,
+                    "updated_at": None,
+                    "preferences": {
+                        "communication_style": "friendly",
+                        "language": "vi",
+                        "response_length": "concise"
+                    },
+                    "history": [],
+                    "custom_data": {}
                 }
             else:
                 return {"error": f"User profile not found for user {user_id}"}
@@ -261,11 +312,47 @@ class UserProfileAndBalanceServer:
             return {"error": "query is required"}
         
         try:
-            user_profile = UserService.get_user_profile(user_id)
-            if not user_profile:
-                return {"error": f"User {user_id} not found"}
-            
             query_lower = query.lower()
+            user_profile = None
+            
+            # Try to get by UUID first, then by email
+            try:
+                user_profile = UserService.get_user_profile(user_id)
+            except:
+                user = UserService.get_user_by_email(user_id)
+                if user:
+                    user_profile = UserService.get_user_profile(str(user.id))
+            
+            if not user_profile and user_id == "anonymous":
+                # Handle anonymous user queries
+                if "name" in query_lower:
+                    return {
+                        "result": {
+                            "full_name": "Khách hàng",
+                            "firstName": "Khách",
+                            "lastName": "hàng",
+                            "nickname": None
+                        }
+                    }
+                elif "who" in query_lower or "ai" in query_lower:
+                    return {
+                        "result": {
+                            "summary": "Bạn là khách hàng đang sử dụng dịch vụ hỗ trợ của Oreka",
+                            "basic_info": {
+                                "role": "guest",
+                                "status": "anonymous user"
+                            }
+                        }
+                    }
+                else:
+                    return {
+                        "result": {
+                            "summary": "Khách hàng ẩn danh",
+                            "role": "guest"
+                        }
+                    }
+            elif not user_profile:
+                return {"error": f"User {user_id} not found"}
             
             if "name" in query_lower:
                 return {
@@ -298,6 +385,37 @@ class UserProfileAndBalanceServer:
                         "storeId": str(user_profile.storeId) if user_profile.storeId else None
                     }
                 }
+            elif "balance" in query_lower or "điểm" in query_lower or "point" in query_lower:
+                # Get balance information
+                try:
+                    balance_data = BalanceService.get_user_balance(str(user_profile.id))
+                    if balance_data:
+                        return {
+                            "result": {
+                                "balance": {
+                                    "amount": balance_data.balance,
+                                    "formatted": balance_data.balance_formatted,
+                                    "points": balance_data.point,
+                                    "points_formatted": balance_data.point_formatted,
+                                    "last_updated": balance_data.updatedAt.isoformat()
+                                },
+                                "summary": f"Điểm 02 của bạn: {balance_data.balance_formatted}, Points: {balance_data.point_formatted}"
+                            }
+                        }
+                    else:
+                        return {
+                            "result": {
+                                "balance": None,
+                                "summary": "Không tìm thấy thông tin điểm 02 cho tài khoản này"
+                            }
+                        }
+                except Exception as e:
+                    return {
+                        "result": {
+                            "balance": None,
+                            "summary": f"Lỗi khi lấy thông tin điểm 02: {str(e)}"
+                        }
+                    }
             else:
                 # Return summary for general queries
                 return {
@@ -320,20 +438,7 @@ async def main():
     """Main MCP server loop"""
     server = UserProfileAndBalanceServer()
     
-    print("User Profile & Balance MCP Server started", file=sys.stderr)
-    print("Available methods:", file=sys.stderr)
-    print("  User Profile:", file=sys.stderr)
-    print("    - get_user_profile(user_id): Get complete user profile", file=sys.stderr)
-    print("    - get_user_by_email(email): Find user by email", file=sys.stderr)
-    print("    - get_user_by_username(username): Find user by username", file=sys.stderr)
-    print("    - query_user_data(user_id, query): Query specific user data", file=sys.stderr)
-    print("  Balance & Points:", file=sys.stderr)
-    print("    - get_user_balance(user_id): Get user balance (điểm 02)", file=sys.stderr)
-    print("    - get_user_points(user_id): Get user points", file=sys.stderr)
-    print("    - get_balance_info(user_id): Get complete balance info", file=sys.stderr)
-    print("    - get_top_balances(limit): Get top users by balance", file=sys.stderr)
-    print("    - get_balance_stats(): Get balance statistics", file=sys.stderr)
-    print("    - search_user_balances(user_ids): Search multiple users", file=sys.stderr)
+    # MCP server is running
     
     try:
         while True:
@@ -374,7 +479,7 @@ async def main():
                 print(json.dumps(error_response), flush=True)
                 
     except KeyboardInterrupt:
-        print("User Profile & Balance Server shutting down...", file=sys.stderr)
+        pass
 
 
 if __name__ == "__main__":
