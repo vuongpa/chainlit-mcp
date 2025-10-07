@@ -5,6 +5,12 @@
       "command": "/Users/vuong/Documents/Workspace/chatbot-with-rag/.venv/bin/python",
       "args": ["/Users/vuong/Documents/Workspace/chatbot-with-rag/mcp_user_server.py"],
       "env": {}
+    },
+    {
+      "name": "user_order_server",
+      "command": "/Users/vuong/Documents/Workspace/chatbot-with-rag/.venv/bin/python",
+      "args": ["/Users/vuong/Documents/Workspace/chatbot-with-rag/mcp_order_server.py"],
+      "env": {}
     }
   ]
 }

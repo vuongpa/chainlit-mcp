@@ -128,7 +128,13 @@ class Rag:
     
     def initialize_store(self) -> FAISS:
         embedding = self.get_embedding()
-        dir = f"{os.getenv("VECTOR_STORE_PATH")}/{self.inputFolder}/{self.embedding.name}/{self.inputFolder}"
+        base_store_path = os.getenv("VECTOR_STORE_PATH", "vector_store")
+        dir = os.path.join(
+            base_store_path,
+            self.inputFolder,
+            self.embedding.name,
+            self.inputFolder,
+        )
         chunkSize: int = 2000
         chunkOverlap: int = 400
         self.store: FAISS = None
@@ -208,7 +214,7 @@ class Rag:
                         else:
                             context = (context or "") + "\nOrder Information: No order data available for this user."
                         
-                        await mcp_client.close()
+                        # Keep the MCP client alive for reuse within the same event loop
                         
                     except Exception as order_error:
                         print(f"DEBUG: Error getting order context: {order_error}")

@@ -3,6 +3,7 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 from contextlib import asynccontextmanager
+from weakref import WeakKeyDictionary
 
 import httpx
 from pydantic import BaseModel, Field
@@ -297,15 +298,44 @@ class MCPClient:
         return cls(servers)
 
 
-_mcp_client: Optional[MCPClient] = None
+_mcp_clients: "WeakKeyDictionary[asyncio.AbstractEventLoop, MCPClient]" = WeakKeyDictionary()
+_mcp_client_locks: "WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock]" = WeakKeyDictionary()
+
+
+def _get_client_lock(loop: asyncio.AbstractEventLoop) -> asyncio.Lock:
+    lock = _mcp_client_locks.get(loop)
+    if lock is None:
+        lock = asyncio.Lock()
+        _mcp_client_locks[loop] = lock
+    return lock
 
 async def get_mcp_client() -> MCPClient:
-    global _mcp_client
-    if _mcp_client is None:
-        config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "mcp_config.json")
-        _mcp_client = MCPClient.from_config(config_path)
-        await _mcp_client.initialize()
-    return _mcp_client
+    loop = asyncio.get_running_loop()
+
+    client = _mcp_clients.get(loop)
+    if client is not None:
+        return client
+
+    lock = _get_client_lock(loop)
+    async with lock:
+        client = _mcp_clients.get(loop)
+        if client is None:
+            config_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                "mcp_config.json",
+            )
+            client = MCPClient.from_config(config_path)
+            await client.initialize()
+            _mcp_clients[loop] = client
+    return client
+
+
+async def close_mcp_client() -> None:
+    loop = asyncio.get_running_loop()
+    client = _mcp_clients.pop(loop, None)
+    if client is not None:
+        await client.close()
+    _mcp_client_locks.pop(loop, None)
 
 @asynccontextmanager
 async def mcp_client_context():

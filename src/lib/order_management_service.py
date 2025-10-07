@@ -19,7 +19,6 @@ class OrderManagementService:
         """
         try:
             with get_order_session_context() as session:
-                # Query đơn hàng đang chờ giao (chưa delivered, chưa cancelled, chưa completed)
                 base_query = """
                     SELECT COUNT(DISTINCT oi.id) as pending_count,
                            COUNT(DISTINCT o.id) as pending_orders
@@ -29,11 +28,13 @@ class OrderManagementService:
                       AND oi."cancelledAt" IS NULL
                       AND oi."completedAt" IS NULL
                 """
-                
+
+                params = {}
                 if user_id:
-                    base_query += f' AND o."userId" = \'{user_id}\''
-                
-                result = session.exec(text(base_query))
+                    base_query += ' AND o."userId" = :user_id'
+                    params["user_id"] = user_id
+
+                result = session.exec(text(base_query), params)
                 data = result.fetchone()
                 
                 return {
@@ -72,19 +73,30 @@ class OrderManagementService:
                     WHERE (oi."deliveredAt" IS NULL OR oi."completedAt" IS NULL)
                       AND oi."cancelledAt" IS NULL
                 """
-                
+
+                params = {}
                 if user_id:
-                    base_query += f' AND o."userId" = \'{user_id}\''
-                
-                result = session.exec(text(base_query))
+                    base_query += ' AND o."userId" = :user_id'
+                    params["user_id"] = user_id
+
+                result = session.exec(text(base_query), params)
                 data = result.fetchone()
-                
+
+                if not data:
+                    total_amount = total_items = total_orders = unpaid_amount = unpaid_orders = 0
+                else:
+                    total_amount = data[0] or 0
+                    total_items = data[1] or 0
+                    total_orders = data[2] or 0
+                    unpaid_amount = data[3] or 0
+                    unpaid_orders = data[4] or 0
+
                 return {
-                    "total_pending_amount": data[0] if data[0] else 0,
-                    "total_pending_items": data[1] if data else 0,
-                    "total_pending_orders": data[2] if data else 0,
-                    "unpaid_amount": data[3] if data[3] else 0,
-                    "unpaid_orders": data[4] if data else 0,
+                    "total_pending_amount": total_amount,
+                    "total_pending_items": total_items,
+                    "total_pending_orders": total_orders,
+                    "unpaid_amount": unpaid_amount,
+                    "unpaid_orders": unpaid_orders,
                     "user_id": user_id,
                     "query_time": datetime.now().isoformat()
                 }
@@ -105,6 +117,11 @@ class OrderManagementService:
             Dict chứa thông tin dự kiến giao hàng
         """
         try:
+            try:
+                days_ahead_int = max(int(days_ahead), 0)
+            except (TypeError, ValueError):
+                days_ahead_int = 30
+
             with get_order_session_context() as session:
                 # Query các đơn hàng đã shipped nhưng chưa delivered
                 base_query = """
@@ -122,13 +139,15 @@ class OrderManagementService:
                       AND oi."deliveredAt" IS NULL
                       AND oi."cancelledAt" IS NULL
                 """
-                
+
+                params = {}
                 if user_id:
-                    base_query += f' AND o."userId" = \'{user_id}\''
-                
+                    base_query += ' AND o."userId" = :user_id'
+                    params["user_id"] = user_id
+
                 base_query += ' ORDER BY oi."shippedAt" DESC'
-                
-                result = session.exec(text(base_query))
+
+                result = session.exec(text(base_query), params)
                 shipped_orders = result.fetchall()
                 
                 # Tính toán dự kiến giao hàng (giả sử 3-5 ngày từ khi ship)
@@ -154,9 +173,11 @@ class OrderManagementService:
                 
                 # Thống kê
                 total_shipped = len(delivery_estimates)
-                upcoming_deliveries = len([est for est in delivery_estimates 
-                                         if datetime.fromisoformat(est['estimated_delivery_max'].replace('T', ' ')) 
-                                         <= datetime.now() + timedelta(days=days_ahead)])
+                upcoming_deliveries = len([
+                    est for est in delivery_estimates
+                    if datetime.fromisoformat(est['estimated_delivery_max'].replace('T', ' '))
+                    <= datetime.now() + timedelta(days=days_ahead_int)
+                ])
                 
                 return {
                     "delivery_estimates": delivery_estimates,
@@ -195,23 +216,30 @@ class OrderManagementService:
                     FROM v2_orders o
                     JOIN v2_order_items oi ON o.id = oi."orderId"
                 """
-                
+
+                params = {}
                 if user_id:
-                    base_query += f' WHERE o."userId" = \'{user_id}\''
-                
-                result = session.exec(text(base_query))
+                    base_query += ' WHERE o."userId" = :user_id'
+                    params["user_id"] = user_id
+
+                result = session.exec(text(base_query), params)
                 data = result.fetchone()
-                
+
+                if not data:
+                    totals = [0] * 8
+                else:
+                    totals = [value or 0 for value in data]
+
                 return {
                     "summary": {
-                        "total_orders": data[0] if data else 0,
-                        "total_items": data[1] if data else 0,
-                        "total_value": data[2] if data[2] else 0,
-                        "delivered_items": data[3] if data else 0,
-                        "cancelled_items": data[4] if data else 0,
-                        "shipping_items": data[5] if data else 0,
-                        "pending_items": data[6] if data else 0,
-                        "unpaid_amount": data[7] if data[7] else 0,
+                        "total_orders": totals[0],
+                        "total_items": totals[1],
+                        "total_value": totals[2],
+                        "delivered_items": totals[3],
+                        "cancelled_items": totals[4],
+                        "shipping_items": totals[5],
+                        "pending_items": totals[6],
+                        "unpaid_amount": totals[7],
                     },
                     "user_id": user_id,
                     "query_time": datetime.now().isoformat()
@@ -233,6 +261,11 @@ class OrderManagementService:
             Dict chứa danh sách đơn hàng gần đây
         """
         try:
+            try:
+                limit_int = max(int(limit), 1)
+            except (TypeError, ValueError):
+                limit_int = 10
+
             with get_order_session_context() as session:
                 base_query = """
                     SELECT DISTINCT
@@ -253,17 +286,19 @@ class OrderManagementService:
                     FROM v2_orders o
                     LEFT JOIN v2_order_items oi ON o.id = oi."orderId"
                 """
-                
+
+                params = {"limit": limit_int}
                 if user_id:
-                    base_query += f' WHERE o."userId" = \'{user_id}\''
-                
-                base_query += f'''
+                    base_query += ' WHERE o."userId" = :user_id'
+                    params["user_id"] = user_id
+
+                base_query += '''
                     GROUP BY o.id, o."shortId", o.name, o.address, o."createdAt", o.deposited, o."paymentMethod"
                     ORDER BY o."createdAt" DESC
-                    LIMIT {limit}
+                    LIMIT :limit
                 '''
-                
-                result = session.exec(text(base_query))
+
+                result = session.exec(text(base_query), params)
                 orders = result.fetchall()
                 
                 order_list = []
