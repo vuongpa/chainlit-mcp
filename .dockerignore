@@ -1,0 +1,22 @@
+# Exclude local development artifacts from Docker context
+.git
+.gitignore
+.env
+.env.*
+.vscode
+__pycache__
+*.py[cod]
+*.log
+*.sqlite3
+site
+.build
+coverage*
+htmlcov
+.DS_Store
+.cache
+pytest_cache
+node_modules
+.venv
+vector_store
+uploaded_docs
+user_cache

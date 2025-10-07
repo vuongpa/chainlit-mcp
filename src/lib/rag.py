@@ -4,6 +4,8 @@ from enum import Enum
 from operator import itemgetter
 from typing import List, Union
 from uuid import uuid4
+
+os.environ.setdefault("FAISS_OPT_LEVEL", "GENERIC")
 import faiss
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_anthropic import ChatAnthropic

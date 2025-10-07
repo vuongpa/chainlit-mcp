@@ -65,6 +65,33 @@ uv run src/main.py
 
 Khi server chạy, mở trình duyệt tại [http://127.0.0.1:8000](http://127.0.0.1:8000) (FastAPI sẽ chuyển hướng tới giao diện Chainlit `/chat`).
 
+### Triển khai bằng Docker
+
+```bash
+docker build -t chatbot-with-rag .
+docker run --env-file .env -p 8000:8000 chatbot-with-rag
+```
+
+> Gợi ý: chuẩn bị sẵn file `.env` với các khóa API trước khi chạy `docker run`. Trong môi trường production, dùng trình điều phối (Kubernetes, ECS, v.v.) để quản lý biến môi trường và logging tập trung.
+
+### Publish lên Docker Hub
+
+```bash
+# Đăng nhập Docker Hub (chỉ cần thực hiện 1 lần cho mỗi máy)
+docker login
+
+# Build và gắn tag theo định dạng <tài_khoản>/<tên_image>:<tag>
+docker build -t <username>/chatbot-with-rag:latest .
+
+# Push lên registry
+docker push <username>/chatbot-with-rag:latest
+
+# (Tuỳ chọn) deploy server thực tế
+docker run --env-file .env -p 8000:8000 <username>/chatbot-with-rag:latest
+```
+
+> Lưu ý: thay `<username>` bằng tài khoản Docker Hub của bạn. Nếu muốn versioning rõ ràng, gắn thêm tag theo phiên bản app (ví dụ `:v1.0.0`) song song với `latest`.
+
 ## Cấu hình môi trường (`.env`)
 
 | Biến | Ý nghĩa |
