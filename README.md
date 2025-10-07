@@ -1,116 +1,133 @@
-# ChatBot with RAG App
+# Chatbot Hỗ Trợ Khách Hàng với RAG & MCP
 
-This sample app enables intelligent, dynamic interactions by retrieving relevant information from a vector store and addressing users personally based on their queries.
+Nền tảng chatbot tùy biến cho Oreka giúp đội hỗ trợ khách hàng triển khai trợ lý ảo song ngữ, vừa nắm vững tri thức nội bộ (Retrieval-Augmented Generation) vừa truy xuất dữ liệu nghiệp vụ thời gian thực thông qua Model Context Protocol (MCP). Giải pháp được đóng gói như một ứng dụng FastAPI + Chainlit, sẵn sàng triển khai on-premise hoặc hạ tầng đám mây.
 
-## Features
+![Giao diện tổng quan](/assets/home-screen.png?raw=true "Giao diện Chainlit")
 
-**Contextualization**: The bot can contextualize user questions and retrieve more relevant chunks from the vector store, improving the accuracy of its responses.
+## Tổng quan điều hành
 
-**Reusable classes**: The app includes reusable classes for handling RAG, chat settings, chat history  and more.
+- **Mục tiêu**: rút ngắn thời gian phản hồi, chuẩn hóa câu trả lời và tận dụng dữ liệu lịch sử để cá nhân hóa trải nghiệm khách hàng Oreka.
+- **Đối tượng sử dụng**: đội chăm sóc khách hàng, vận hành doanh nghiệp, hoặc đối tác muốn tích hợp chatbot tự động vào quy trình của mình.
+- **Thông số chính**:
+    - Python ≥ 3.9, quản lý gói bằng `uv`.
+    - LLM hỗ trợ: OpenAI (mặc định), Anthropic Claude, hoặc mô hình nội bộ qua Ollama.
+    - Vector store: FAISS với cache trên đĩa (`vector_store/`).
+    - Khả năng mở rộng: cấu hình `prompt/` và `rag_source/` linh hoạt, tích hợp MCP để gọi dịch vụ nghiệp vụ.
 
-**Follow-up questions**: App generates intelligent follow-up questions to drive deeper engagement.
+## Kiến trúc & công nghệ chủ đạo
 
-**Updatable chat history**: Users can update previous messages in the conversation.
+| Tầng | Công nghệ | Vai trò |
+| --- | --- | --- |
+| Giao diện hội thoại | [Chainlit](https://chainlit.io) | Kết xuất UI, quản lý session, widget, TTS/STT. |
+| API & điều phối | [FastAPI](https://fastapi.tiangolo.com) | Phục vụ endpoint `/chat`, `/health`, lifecycle & auth. |
+| Orchestration LLM | [LangChain](https://www.langchain.com) | Xây dựng pipeline RAG, contextualization, structured output. |
+| Vector Store | [FAISS](https://faiss.ai) | Tìm kiếm ngữ nghĩa tốc độ cao, lưu cache embedding. |
+| Nhúng & LLM | OpenAI, Anthropic, HuggingFace, Ollama | Linh hoạt lựa chọn mô hình inference & embedding. |
+| Âm thanh | OpenAI Whisper, [ElevenLabs](https://elevenlabs.io) | Speech-to-Text và Text-to-Speech theo yêu cầu. |
+| MCP | MCP Client + `mcp_user_server.py`, `mcp_order_server.py` | Kết nối dịch vụ hồ sơ khách hàng, đơn hàng thời gian thực. |
 
-**Authentication and personalized user interactions**: The bot authenticates users and addresses them by their name during interactions.
+## Luồng tương tác RAG
 
-**Speech To Text and Text to Speech**: This app provides a seamless chat experience with speech-to-text and text-to-speech capabilities, enhancing accessibility and convenience for users.
+1. Người dùng đăng nhập qua cơ chế `AuthManager`, Chainlit tạo session và sinh gợi ý hội thoại (starter prompts).
+2. `ChatApp.create_rag()` khởi tạo đối tượng `Rag`: nạp prompt từ `prompt/`, tạo hoặc load vector store từ `rag_source/`.
+3. LangChain retriever lọc 4 đoạn tri thức sát với câu hỏi, kết hợp với `chat_history` để contextualize (tùy `CONTEXTUALIZATION`).
+4. MCP Client (nếu `ENABLE_MCP=true`) bổ sung dữ liệu động: hồ sơ khách hàng, dashboard đơn hàng, số dư điểm thưởng...
+5. LLM sinh câu trả lời, `JsonOutputParser` xử lý cấu trúc (ví dụ follow-up question); kết quả được stream về Chainlit.
+6. Nếu bật TTS, phản hồi được tổng hợp giọng nói qua ElevenLabs và phát ngay trong UI.
 
-![Sample](/assets/home-screen.png?raw=true "Rag Demo using LangChain, Chainlit, Faiss & FastApi")
+## Tính năng nổi bật
 
-## Setup
+- Cá nhân hóa câu trả lời dựa trên user profile, lịch sử giao dịch và ngữ cảnh hội thoại.
+- Truy xuất tri thức nội bộ cập nhật (PDF, Markdown, JSON) và tự lưu vector hoá.
+- Hỗ trợ gợi ý follow-up thông minh, cập nhật lại tin nhắn đã gửi (editable history).
+- Nhận diện giọng nói thời gian thực, phát lại phản hồi bằng giọng tự nhiên.
+- Bảng điều khiển MCP: truy vấn thông tin đơn hàng, số dư, quyền hạn người dùng mà không phải huấn luyện lại mô hình.
+- Khả năng tùy biến nhanh thông qua file cấu hình, script `quick_start.sh`, và hội thoại kiểu trình diễn.
 
-Run quick_start.sh file or install dependencies and run the application using uv:
+## Thiết lập nhanh
+
+Sử dụng script tự động:
 
 ```bash
-# Sync dependencies
-uv sync
+chmod +x quick_start.sh
+./quick_start.sh
+```
 
-# Create virtual environment
+Hoặc thực hiện thủ công:
+
+```bash
+uv sync
 uv venv .venv
 source .venv/bin/activate
-
-# Set API keys
-Rename .env.sample file to .env file and add your API keys. 
-
-# Start the application
+cp .env.sample .env  # nếu chưa có
 uv run src/main.py
 ```
 
-## To Use Your Prompt & Data
+Khi server chạy, mở trình duyệt tại [http://127.0.0.1:8000](http://127.0.0.1:8000) (FastAPI sẽ chuyển hướng tới giao diện Chainlit `/chat`).
 
-By default, the repository is configured with the Oreka.vn customer support knowledge base.
+## Cấu hình môi trường (`.env`)
 
-- Prompt: prompt/oreka_faqs.txt
-- Knowledge source: rag_source/oreka_faqs/zendesk-2025-10-04T06-54-33.md
+| Biến | Ý nghĩa |
+| --- | --- |
+| `OPENAI_API_KEY`, `OPENAI_MODEL` | Dùng cho LLM & embeddings mặc định. |
+| `ANTROPHIC_API_KEY`, `ANTROPHIC_MODEL` | Thay thế bằng Claude. |
+| `OLLAMA_MODEL`, `HUGGINGFACE_EMBED_MODEL` | Chạy mô hình nội bộ hoặc HuggingFace embeddings. |
+| `CONTEXTUALIZATION` | Bật/tắt chuẩn hoá câu hỏi dựa trên lịch sử. |
+| `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | Kích hoạt TTS. |
+| `ENABLE_MCP` | Điều khiển việc gọi MCP runtime. |
+| `MCP_SERVERS` | Khai báo JSON các server MCP bổ sung ngoài `mcp_config.json`. |
+| `VECTOR_STORE_PATH` | Thư mục lưu trữ cache FAISS. |
+| `CHAINLIT_AUTH_SECRET` | Bảo vệ session Chainlit. |
 
-To use your own prompt and data, follow these steps:
+> Lưu ý: chỉ cần khai báo một API key LLM để bắt đầu; các tuỳ chọn khác có thể bổ sung dần.
 
-Place your custom prompt inside the prompt folder (e.g., myprompt.txt), and upload the corresponding PDF files to the rag_source folder (e.g., rag_source/myrag/myfile.pdf).
+## Tạo RAG cho bộ dữ liệu mới
 
-Update create_rag method in src/chat_app.py file.
+1. **Biên soạn prompt**: tạo file `.txt` trong `prompt/` (ví dụ `my_prompt.txt`) miêu tả phong cách trả lời.
+2. **Chuẩn bị dữ liệu**: đặt tài liệu nguồn (PDF/Markdown/JSON/TXT) vào `rag_source/my_dataset/`.
+3. **Cập nhật cấu hình**: chỉnh `ChatApp.create_rag()` trong `src/chat_app.py` trỏ tới `inputFolder="my_dataset"` và `promptFile="my_prompt.txt"`.
+4. **Tái khởi động**: xoá cache cũ nếu cần (`rm -rf vector_store/my_dataset`) để forcing re-embedding, sau đó chạy lại ứng dụng.
+5. **Kiểm tra**: hỏi chatbot và xác nhận log hiển thị `Loading from local store` hoặc `Saved to local store`.
 
-```python
-rag = Rag(
-    inputFolder="myrag",
-    promptFile="myprompt.txt",
-    chat_settings=chat_settings
-)
-```
+LangChain sẽ tự động chunk dữ liệu (2000 ký tự, overlap 400) và lưu FAISS index vào `vector_store/<dataset>/<embedding>/`.
 
-## Text to Speech (TTS)
+## Điều chỉnh trải nghiệm hội thoại
 
-To use TTS:
+- Trong giao diện Chainlit, mở "Chat Settings" để thay đổi `Temperature`, `TopP`, bật/tắt follow-up và TTS.
+- Bạn có thể bổ sung starter prompts trong `src/start.py` để phù hợp các kịch bản trình diễn.
+- Cài đặt TTS cần bật `ELEVENLABS` trong `.env` và kích hoạt công tắc tương ứng.
 
-1.Add below environment variables.
+![Cấu hình TTS](/assets/settings.png?raw=true "Cài đặt hội thoại")
 
-```bash
-ELEVENLABS_API_KEY=
-ELEVENLABS_VOICE_ID=
-```
+## Tích hợp Model Context Protocol (MCP)
 
-2.Open chat settings and enable TTS.
+- **Cấu hình mặc định** nằm trong `mcp_config.json`, định nghĩa hai tiến trình:
+    - `mcp_user_server.py`: truy vấn hồ sơ khách hàng, điểm thưởng (kết nối DB qua `lib.db_services`, `lib.order_services`).
+    - `mcp_order_server.py`: thống kê đơn hàng, dự kiến giao, số tiền cần thanh toán.
+- Khi `ENABLE_MCP=true`, `lib.mcp_client.MCPClient` sẽ khởi động các tiến trình này, cache kết nối theo event loop và cung cấp API tiện dụng như `get_user_order_dashboard`.
+- Có thể mở rộng bằng cách:
+    - Thêm server mới vào `mcp_config.json` hoặc biến môi trường `MCP_SERVERS`.
+    - Triển khai server HTTP tuân thủ JSON-RPC và khai báo `url` thay vì `command`.
+    - Gọi trực tiếp từ chain bằng cách sử dụng `get_mcp_client()` trong tác vụ tuỳ chỉnh.
+- Để tắt MCP, đặt `ENABLE_MCP=false`; RAG sẽ fallback sang ngữ cảnh cơ bản (user ID).
 
-![Sample](/assets/settings.png?raw=true "TTS")
+## Vận hành & giám sát
 
-## Contextualization
+- Chạy ứng dụng bằng `uv run src/main.py` hoặc `uvicorn main:create_app --factory`.
+- Endpoint `/health` trả về trạng thái database thông qua `DatabaseManager.test_connection()`.
+- Log MCP hiển thị trong console, giúp chẩn đoán việc khởi tạo session hoặc truy vấn đơn hàng.
+- Khi dừng ứng dụng, lifecycle FastAPI sẽ đóng kết nối MCP và database tự động.
 
-You can enable or disable contextualization by setting the environment variable:
+## Định hướng mở rộng gợi ý
 
-```bash
-CONTEXTUALIZATION=True
-```
+- Bổ sung `Chainlit` task list để hiển thị KPI dịch vụ.
+- Tích hợp thêm nguồn tri thức (Confluence, Notion) thông qua loader LangChain.
+- Kết nối MCP với các microservice khác (ERP, CRM) để tăng chiều sâu cá nhân hóa.
 
-### What is contextualization?
+## Tài nguyên tham khảo
 
-Contextualization allows the chatbot to better understand user queries by maintaining a reference to previous interactions, improving the relevance of retrieved information.
-
-## Embeddings
-
-There are two options for generating embeddings: OpenAI or HuggingFace (the default is OpenAI).
-
-To configure the HuggingFace embedding model, set the HUGGINGFACE_EMBED_MODEL environment variable with your desired model. For example:
-
-```bash
-HUGGINGFACE_EMBED_MODEL=sentence-transformers/all-mpnet-base-v2
-```
-
-To switch to OpenAI embeddings, update the RAG instance in the src/chainlit_start.py file as follows:
-
-```python
-rag = ChainlitRag.rag = Rag(
-    ...
-    chat_settings=chat_settings,
-    embedding=EMBEDDINGS.openai,  # Use OpenAI embeddings
-    output_formatter=JsonOutputParser(pydantic_object=ResultWithFollowup)
-)
-```
-
-Make sure to set your OpenAI API key in your .env file if you choose OpenAI embeddings.
-
-## More Info
-
-- [Chainlit Documentation](https://docs.chainlit.io/get-started/overview) - Learn more about Chainlit and how to customize it.
-- [LangChain Documentation](https://www.langchain.com/) - Understand how LangChain can be used for chaining AI models with various tools and services.
-- [Faiss Documentation](https://faiss.ai) – Explore how Faiss performs vector similarity search.
-- [FastAPI Documentation](https://fastapi.tiangolo.com) – Learn more about FastAPI and how to use it to build high-performance APIs.
+- [Chainlit Documentation](https://docs.chainlit.io/)
+- [LangChain Documentation](https://python.langchain.com/)
+- [FAISS Documentation](https://faiss.ai/)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
