@@ -241,6 +241,74 @@ class OrderManagementServer:
                     "answer": answer,
                     "data": result
                 }
+
+            elif any(word in query_lower for word in ['thấp nhất', 'lowest value', 'đơn rẻ nhất', 'rẻ nhất', 'min order']):
+                result = OrderManagementService.get_lowest_value_order(user_id)
+                order = result.get('lowest_value_order') if isinstance(result, dict) else None
+                if order:
+                    value_raw = order.get('total_value', 0)
+                    try:
+                        value = value_raw if isinstance(value_raw, (int, float)) else float(value_raw or 0)
+                    except (TypeError, ValueError):
+                        value = 0
+                    answer = (
+                        "Đơn hàng giá trị thấp nhất là {order_id} với {items} sản phẩm, tổng giá trị {value:,} VND."
+                        .format(
+                            order_id=order.get('order_id', 'N/A'),
+                            items=order.get('item_count', 0),
+                            value=value
+                        )
+                    )
+                else:
+                    answer = "Không tìm thấy đơn hàng giá trị thấp nhất cho tài khoản này."
+                return {
+                    "answer": answer,
+                    "data": result
+                }
+
+            elif any(word in query_lower for word in ['cao nhất', 'highest value', 'đơn đắt nhất', 'đắt nhất', 'max order']):
+                result = OrderManagementService.get_highest_value_order(user_id)
+                order = result.get('highest_value_order') if isinstance(result, dict) else None
+                if order:
+                    value_raw = order.get('total_value', 0)
+                    try:
+                        value = value_raw if isinstance(value_raw, (int, float)) else float(value_raw or 0)
+                    except (TypeError, ValueError):
+                        value = 0
+                    answer = (
+                        "Đơn hàng giá trị cao nhất là {order_id} với {items} sản phẩm, tổng giá trị {value:,} VND."
+                        .format(
+                            order_id=order.get('order_id', 'N/A'),
+                            items=order.get('item_count', 0),
+                            value=value
+                        )
+                    )
+                else:
+                    answer = "Không tìm thấy đơn hàng giá trị cao nhất cho tài khoản này."
+                return {
+                    "answer": answer,
+                    "data": result
+                }
+
+            elif any(word in query_lower for word in ['trung bình', 'average', 'giá trị trung bình', 'chi tiêu trung bình', 'avg order']):
+                result = OrderManagementService.get_average_order_value(user_id)
+                average_raw = result.get('average_order_value') if isinstance(result, dict) else None
+                if average_raw is not None:
+                    try:
+                        average_value = average_raw if isinstance(average_raw, (int, float)) else float(average_raw)
+                    except (TypeError, ValueError):
+                        average_value = None
+                else:
+                    average_value = None
+
+                if average_value is not None:
+                    answer = f"Giá trị trung bình mỗi đơn hàng bạn đã đặt là {average_value:,} VND."
+                else:
+                    answer = "Không tính được giá trị trung bình cho các đơn hàng của bạn."
+                return {
+                    "answer": answer,
+                    "data": result
+                }
             
             else:
                 # Trả về dashboard tổng hợp
