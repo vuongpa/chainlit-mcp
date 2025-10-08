@@ -124,85 +124,164 @@ class MCPClient:
         
         return None
     
-    # Order Management Methods
-    async def get_pending_orders_count(self, user_id: str = None, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+    DEFAULT_ORDER_SERVER = "user_order_server"
+
+    async def get_pending_orders_count(self, user_id: str = None) -> Optional[Dict[str, Any]]:
         """Lấy số lượng đơn hàng đang chờ giao"""
         try:
             params = {}
             if user_id:
                 params["user_id"] = user_id
             
-            result = await self._query_server(server_name, "get_pending_orders_count", params)
+            result = await self._query_server("user_order_server", "get_pending_orders_count", params)
             return result
         except Exception as e:
             print(f"Error getting pending orders count: {e}")
             return None
     
-    async def get_pending_payment_amount(self, user_id: str = None, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+    async def get_pending_payment_amount(self, user_id: str = None) -> Optional[Dict[str, Any]]:
         """Lấy tổng số tiền phải thanh toán"""
         try:
             params = {}
             if user_id:
                 params["user_id"] = user_id
             
-            result = await self._query_server(server_name, "get_pending_payment_amount", params)
+            result = await self._query_server("user_order_server", "get_pending_payment_amount", params)
             return result
         except Exception as e:
             print(f"Error getting pending payment amount: {e}")
             return None
     
-    async def get_delivery_estimates(self, user_id: str = None, days_ahead: int = 30, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+    async def get_delivery_estimates(self, user_id: str = None, days_ahead: int = 30) -> Optional[Dict[str, Any]]:
         """Lấy dự kiến ngày giao hàng"""
         try:
             params = {"days_ahead": days_ahead}
             if user_id:
                 params["user_id"] = user_id
             
-            result = await self._query_server(server_name, "get_delivery_estimates", params)
+            result = await self._query_server("user_order_server", "get_delivery_estimates", params)
             return result
         except Exception as e:
             print(f"Error getting delivery estimates: {e}")
             return None
     
-    async def get_order_summary(self, user_id: str = None, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+    async def get_order_summary(self, user_id: str = None) -> Optional[Dict[str, Any]]:
         """Lấy tổng quan về đơn hàng"""
         try:
             params = {}
             if user_id:
                 params["user_id"] = user_id
             
-            result = await self._query_server(server_name, "get_order_summary", params)
+            result = await self._query_server("user_order_server", "get_order_summary", params)
             return result
         except Exception as e:
             print(f"Error getting order summary: {e}")
             return None
     
-    async def get_recent_orders(self, user_id: str = None, limit: int = 10, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+    async def get_recent_orders(self, user_id: str = None, limit: int = 10) -> Optional[Dict[str, Any]]:
         """Lấy danh sách đơn hàng gần đây"""
         try:
             params = {"limit": limit}
             if user_id:
                 params["user_id"] = user_id
             
-            result = await self._query_server(server_name, "get_recent_orders", params)
+            result = await self._query_server("user_order_server", "get_recent_orders", params)
             return result
         except Exception as e:
             print(f"Error getting recent orders: {e}")
             return None
+
+    async def get_completed_orders_summary(self, user_id: str = None) -> Optional[Dict[str, Any]]:
+        """Lấy thống kê đơn đã hoàn thành"""
+        try:
+            params = {}
+            if user_id:
+                params["user_id"] = user_id
+
+            result = await self._query_server("user_order_server", "get_completed_orders_summary", params)
+            return result
+        except Exception as e:
+            print(f"Error getting completed orders summary: {e}")
+            return None
+
+    async def get_latest_order(self, user_id: str = None) -> Optional[Dict[str, Any]]:
+        """Lấy thông tin đơn mới nhất"""
+        try:
+            params = {}
+            if user_id:
+                params["user_id"] = user_id
+
+            result = await self._query_server("user_order_server", "get_latest_order", params)
+            return result
+        except Exception as e:
+            print(f"Error getting latest order: {e}")
+            return None
+
+    async def get_next_delivery_order(self, user_id: str = None) -> Optional[Dict[str, Any]]:
+        """Lấy thông tin đơn sắp giao"""
+        try:
+            params = {}
+            if user_id:
+                params["user_id"] = user_id
+
+            result = await self._query_server("user_order_server", "get_next_delivery_order", params)
+            return result
+        except Exception as e:
+            print(f"Error getting next delivery order: {e}")
+            return None
+
+    async def get_highest_value_order(self, user_id: str = None) -> Optional[Dict[str, Any]]:
+        """Lấy đơn hàng giá trị cao nhất"""
+        try:
+            params = {}
+            if user_id:
+                params["user_id"] = user_id
+
+            result = await self._query_server("user_order_server", "get_highest_value_order", params)
+            return result
+        except Exception as e:
+            print(f"Error getting highest value order: {e}")
+            return None
+
+    async def get_lowest_value_order(self, user_id: str = None) -> Optional[Dict[str, Any]]:
+        """Lấy đơn hàng giá trị thấp nhất"""
+        try:
+            params = {}
+            if user_id:
+                params["user_id"] = user_id
+
+            result = await self._query_server("user_order_server", "get_lowest_value_order", params)
+            return result
+        except Exception as e:
+            print(f"Error getting lowest value order: {e}")
+            return None
+
+    async def get_average_order_value(self, user_id: str = None) -> Optional[Dict[str, Any]]:
+        """Lấy giá trị trung bình của đơn hàng"""
+        try:
+            params = {}
+            if user_id:
+                params["user_id"] = user_id
+
+            result = await self._query_server("user_order_server", "get_average_order_value", params)
+            return result
+        except Exception as e:
+            print(f"Error getting average order value: {e}")
+            return None
     
-    async def get_user_order_dashboard(self, user_id: str, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+    async def get_user_order_dashboard(self, user_id: str) -> Optional[Dict[str, Any]]:
         """Lấy dashboard tổng hợp thông tin đơn hàng"""
         try:
-            result = await self._query_server(server_name, "get_user_order_dashboard", {"user_id": user_id})
+            result = await self._query_server("user_order_server", "get_user_order_dashboard", {"user_id": user_id})
             return result
         except Exception as e:
             print(f"Error getting order dashboard: {e}")
             return None
     
-    async def query_order_data(self, user_id: str, query: str, server_name: str = "order_management_server") -> Optional[Dict[str, Any]]:
+    async def query_order_data(self, user_id: str, query: str) -> Optional[Dict[str, Any]]:
         """Trả lời câu hỏi về đơn hàng"""
         try:
-            result = await self._query_server(server_name, "query_order_data", {"user_id": user_id, "query": query})
+            result = await self._query_server("user_order_server", "query_order_data", {"user_id": user_id, "query": query})
             return result
         except Exception as e:
             print(f"Error querying order data: {e}")

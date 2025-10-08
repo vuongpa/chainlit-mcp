@@ -37,6 +37,18 @@ class OrderManagementServer:
                     params.get("user_id"), 
                     params.get("limit", 10)
                 )
+            elif method == "get_completed_orders_summary":
+                return await self.get_completed_orders_summary(params.get("user_id"))
+            elif method == "get_latest_order":
+                return await self.get_latest_order(params.get("user_id"))
+            elif method == "get_next_delivery_order":
+                return await self.get_next_delivery_order(params.get("user_id"))
+            elif method == "get_highest_value_order":
+                return await self.get_highest_value_order(params.get("user_id"))
+            elif method == "get_lowest_value_order":
+                return await self.get_lowest_value_order(params.get("user_id"))
+            elif method == "get_average_order_value":
+                return await self.get_average_order_value(params.get("user_id"))
             
             # Combined Methods
             elif method == "get_user_order_dashboard":
@@ -90,6 +102,48 @@ class OrderManagementServer:
             return result
         except Exception as e:
             return {"error": f"Failed to get recent orders: {str(e)}"}
+
+    async def get_completed_orders_summary(self, user_id: str) -> Dict[str, Any]:
+        try:
+            result = OrderManagementService.get_completed_orders_summary(user_id)
+            return result
+        except Exception as e:
+            return {"error": f"Failed to get completed orders summary: {str(e)}"}
+
+    async def get_latest_order(self, user_id: str) -> Dict[str, Any]:
+        try:
+            result = OrderManagementService.get_latest_order(user_id)
+            return result
+        except Exception as e:
+            return {"error": f"Failed to get latest order: {str(e)}"}
+
+    async def get_next_delivery_order(self, user_id: str) -> Dict[str, Any]:
+        try:
+            result = OrderManagementService.get_next_delivery_order(user_id)
+            return result
+        except Exception as e:
+            return {"error": f"Failed to get next delivery order: {str(e)}"}
+
+    async def get_highest_value_order(self, user_id: str) -> Dict[str, Any]:
+        try:
+            result = OrderManagementService.get_highest_value_order(user_id)
+            return result
+        except Exception as e:
+            return {"error": f"Failed to get highest value order: {str(e)}"}
+
+    async def get_lowest_value_order(self, user_id: str) -> Dict[str, Any]:
+        try:
+            result = OrderManagementService.get_lowest_value_order(user_id)
+            return result
+        except Exception as e:
+            return {"error": f"Failed to get lowest value order: {str(e)}"}
+
+    async def get_average_order_value(self, user_id: str) -> Dict[str, Any]:
+        try:
+            result = OrderManagementService.get_average_order_value(user_id)
+            return result
+        except Exception as e:
+            return {"error": f"Failed to get average order value: {str(e)}"}
     
     async def get_user_order_dashboard(self, user_id: str) -> Dict[str, Any]:
         """Lấy tổng hợp thông tin đơn hàng cho dashboard của user"""
@@ -212,6 +266,12 @@ async def main():
     print("    - get_delivery_estimates(user_id, days_ahead): Dự kiến giao hàng", file=sys.stderr)
     print("    - get_order_summary(user_id): Tổng quan đơn hàng", file=sys.stderr)
     print("    - get_recent_orders(user_id, limit): Đơn hàng gần đây", file=sys.stderr)
+    print("    - get_completed_orders_summary(user_id): Thống kê đơn hoàn thành", file=sys.stderr)
+    print("    - get_latest_order(user_id): Đơn mới đặt gần nhất", file=sys.stderr)
+    print("    - get_next_delivery_order(user_id): Đơn sắp giao nhất", file=sys.stderr)
+    print("    - get_highest_value_order(user_id): Đơn giá trị cao nhất", file=sys.stderr)
+    print("    - get_lowest_value_order(user_id): Đơn giá trị thấp nhất", file=sys.stderr)
+    print("    - get_average_order_value(user_id): Giá trị đơn trung bình", file=sys.stderr)
     print("  Combined Methods:", file=sys.stderr)
     print("    - get_user_order_dashboard(user_id): Dashboard tổng hợp", file=sys.stderr)
     print("    - query_order_data(user_id, query): Trả lời câu hỏi về đơn hàng", file=sys.stderr)

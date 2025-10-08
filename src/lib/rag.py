@@ -189,7 +189,31 @@ class Rag:
                 
                 # Check if query is about orders and get order info if needed
                 query_text = inputs.get("input", "").lower()
-                order_keywords = ["đơn hàng", "order", "giao hàng", "delivery", "vận chuyển", "ship", "thanh toán", "payment", "sắp giao", "chờ giao", "pending"]
+                order_keywords = [
+                    "đơn hàng",
+                    "order",
+                    "giao",
+                    "delivery",
+                    "vận chuyển",
+                    "ship",
+                    "thanh toán",
+                    "payment",
+                    "sắp giao",
+                    "chờ giao",
+                    "pending",
+                    "hoàn thành",
+                    "completed",
+                    "trung bình",
+                    "average",
+                    "cao nhất",
+                    "highest",
+                    "thấp nhất",
+                    "lowest",
+                    "giá trị",
+                    "giá",
+                    "tổng quan",
+                    "thống kê"
+                ]
                 balance_keywords = [
                     "số dư",
                     "balance",
@@ -207,29 +231,342 @@ class Rag:
                     try:
                         print(f"DEBUG: Query about orders detected, getting order context...")
                         mcp_client = await get_mcp_client()
-                        
-                        # Get order dashboard for user
-                        order_dashboard = await mcp_client.get_user_order_dashboard(user_id)
-                        if order_dashboard and "dashboard" in order_dashboard:
-                            dashboard_data = order_dashboard["dashboard"]
-                            order_context = f"\nOrder Information:\n"
-                            order_context += f"- Pending orders: {dashboard_data.get('pending_orders', {}).get('count', 0)}\n"
-                            order_context += f"- Unpaid amount: {dashboard_data.get('financial', {}).get('unpaid_amount', 0):,} VND\n"
-                            order_context += f"- Upcoming deliveries (7 days): {dashboard_data.get('deliveries', {}).get('upcoming_7_days', 0)}\n"
-                            
-                            # Add recent orders info
-                            recent_orders = dashboard_data.get('recent_orders', [])
-                            if recent_orders:
-                                order_context += f"- Recent orders:\n"
-                                for order in recent_orders[:3]:  # Top 3
-                                    order_context += f"  * {order.get('order_id', 'N/A')} ({order.get('status', 'unknown')}) - {order.get('total_value', 0):,} VND\n"
-                            
+
+                        pending_keywords = [
+                            "chờ giao",
+                            "pending",
+                            "đang chờ",
+                            "chưa giao",
+                            "chưa nhận",
+                            "đơn hàng chưa",
+                            "đơn hàng nào chưa",
+                            "đơn hàng nào",
+                            "còn giao",
+                            "đơn chưa hoàn thành",
+                            "đơn đang xử lý"
+                        ]
+                        payment_keywords = [
+                            "tiền",
+                            "thanh toán",
+                            "phải trả",
+                            "payment",
+                            "money",
+                            "công nợ",
+                            "còn nợ"
+                        ]
+                        delivery_keywords = [
+                            "giao hàng",
+                            "delivery",
+                            "dự kiến",
+                            "khi nào đến",
+                            "bao giờ giao",
+                            "sắp giao",
+                            "khi nào nhận",
+                            "ngày giao",
+                            "bao giờ đến"
+                        ]
+                        summary_keywords = [
+                            "tổng quan",
+                            "summary",
+                            "thống kê",
+                            "overview",
+                            "tình hình",
+                            "báo cáo",
+                            "toàn cảnh"
+                        ]
+                        recent_keywords = [
+                            "gần đây",
+                            "recent",
+                            "mới nhất",
+                            "latest",
+                            "gần nhất",
+                            "vừa đặt"
+                        ]
+                        completed_keywords = [
+                            "hoàn thành",
+                            "completed",
+                            "đã giao",
+                            "đơn đã xong",
+                            "đơn hoàn tất"
+                        ]
+                        latest_order_keywords = [
+                            "đơn mới nhất",
+                            "latest order",
+                            "vừa đặt",
+                            "gần đây nhất",
+                            "đơn cuối cùng",
+                            "last order"
+                        ]
+                        next_delivery_keywords = [
+                            "sắp giao",
+                            "next delivery",
+                            "đơn tiếp theo",
+                            "sớm nhất",
+                            "khi nào đến",
+                            "bao giờ nhận"
+                        ]
+                        highest_value_keywords = [
+                            "cao nhất",
+                            "highest value",
+                            "đơn giá trị nhất",
+                            "đơn đắt nhất",
+                            "max order"
+                        ]
+                        lowest_value_keywords = [
+                            "thấp nhất",
+                            "lowest value",
+                            "đơn rẻ nhất",
+                            "đơn giá trị thấp",
+                            "min order"
+                        ]
+                        average_value_keywords = [
+                            "trung bình",
+                            "average",
+                            "giá trị trung bình",
+                            "chi tiêu trung bình",
+                            "avg order"
+                        ]
+
+                        pending_requested = any(keyword in query_text for keyword in pending_keywords)
+                        payment_requested = any(keyword in query_text for keyword in payment_keywords)
+                        delivery_requested = any(keyword in query_text for keyword in delivery_keywords)
+                        summary_requested = any(keyword in query_text for keyword in summary_keywords)
+                        recent_requested = any(keyword in query_text for keyword in recent_keywords)
+                        completed_requested = any(keyword in query_text for keyword in completed_keywords)
+                        latest_requested = any(keyword in query_text for keyword in latest_order_keywords)
+                        next_delivery_requested = any(keyword in query_text for keyword in next_delivery_keywords)
+                        highest_value_requested = any(keyword in query_text for keyword in highest_value_keywords)
+                        lowest_value_requested = any(keyword in query_text for keyword in lowest_value_keywords)
+                        average_value_requested = any(keyword in query_text for keyword in average_value_keywords)
+
+                        order_context_sections: List[str] = []
+
+                        if pending_requested:
+                            try:
+                                pending = await mcp_client.get_pending_orders_count(user_id)
+                                if pending and not pending.get("error"):
+                                    orders_count = pending.get("pending_orders_count", 0)
+                                    items_count = pending.get("pending_items_count", 0)
+                                    order_context_sections.append(
+                                        f"- Pending orders: {orders_count} (items awaiting delivery: {items_count})"
+                                    )
+                                else:
+                                    order_context_sections.append("- Pending orders: No data available")
+                            except Exception as pending_error:
+                                print(f"DEBUG: Error getting pending orders: {pending_error}")
+                                order_context_sections.append("- Pending orders: Unable to retrieve data")
+
+                        if payment_requested:
+                            try:
+                                payment = await mcp_client.get_pending_payment_amount(user_id)
+                                if payment and not payment.get("error"):
+                                    unpaid_amount = payment.get("unpaid_amount", 0) or 0
+                                    unpaid_orders = payment.get("unpaid_orders", 0)
+                                    total_pending_amount = payment.get("total_pending_amount", 0) or 0
+                                    order_context_sections.append(
+                                        f"- Outstanding payments: {unpaid_amount:,} VND across {unpaid_orders} unpaid orders (total processing value: {total_pending_amount:,} VND)"
+                                    )
+                                else:
+                                    order_context_sections.append("- Outstanding payments: No data available")
+                            except Exception as payment_error:
+                                print(f"DEBUG: Error getting payment data: {payment_error}")
+                                order_context_sections.append("- Outstanding payments: Unable to retrieve data")
+
+                        if delivery_requested:
+                            try:
+                                deliveries = await mcp_client.get_delivery_estimates(user_id, 7)
+                                if deliveries and not deliveries.get("error"):
+                                    upcoming = deliveries.get("upcoming_deliveries", 0)
+                                    estimates = deliveries.get("delivery_estimates", []) or []
+                                    if estimates:
+                                        first_estimate = estimates[0]
+                                        order_context_sections.append(
+                                            f"- Upcoming deliveries (next 7 days): {upcoming}. Next order {first_estimate.get('order_id', 'N/A')} expected between {first_estimate.get('estimated_delivery_min', '')[:10]} and {first_estimate.get('estimated_delivery_max', '')[:10]}"
+                                        )
+                                    else:
+                                        order_context_sections.append(
+                                            f"- Upcoming deliveries (next 7 days): {upcoming}"
+                                        )
+                                else:
+                                    order_context_sections.append("- Upcoming deliveries: No data available")
+                            except Exception as delivery_error:
+                                print(f"DEBUG: Error getting delivery estimates: {delivery_error}")
+                                order_context_sections.append("- Upcoming deliveries: Unable to retrieve data")
+
+                        if next_delivery_requested:
+                            try:
+                                next_order_result = await mcp_client.get_next_delivery_order(user_id)
+                                next_order = next_order_result.get("next_delivery_order") if next_order_result else None
+                                if next_order and not next_order_result.get("error"):
+                                    order_context_sections.append(
+                                        "- Next delivery: {order_id} expected between {min_date} and {max_date} (value: {value:,} VND)".format(
+                                            order_id=next_order.get("order_id", "N/A"),
+                                            min_date=next_order.get("estimated_delivery_min", "")[:10],
+                                            max_date=next_order.get("estimated_delivery_max", "")[:10],
+                                            value=next_order.get("total_value", 0) or 0
+                                        )
+                                    )
+                                else:
+                                    order_context_sections.append("- Next delivery: No upcoming shipments found")
+                            except Exception as next_delivery_error:
+                                print(f"DEBUG: Error getting next delivery order: {next_delivery_error}")
+                                order_context_sections.append("- Next delivery: Unable to retrieve data")
+
+                        if summary_requested:
+                            try:
+                                summary_result = await mcp_client.get_order_summary(user_id)
+                                summary_data = summary_result.get("summary") if summary_result else None
+                                if summary_data and not summary_result.get("error"):
+                                    order_context_sections.append(
+                                        "- Order summary: {total_orders} orders, {total_items} items, total value {total_value:,} VND (delivered: {delivered_items}, shipping: {shipping_items}, pending: {pending_items})".format(
+                                            total_orders=summary_data.get("total_orders", 0),
+                                            total_items=summary_data.get("total_items", 0),
+                                            total_value=summary_data.get("total_value", 0) or 0,
+                                            delivered_items=summary_data.get("delivered_items", 0),
+                                            shipping_items=summary_data.get("shipping_items", 0),
+                                            pending_items=summary_data.get("pending_items", 0)
+                                        )
+                                    )
+                                else:
+                                    order_context_sections.append("- Order summary: No data available")
+                            except Exception as summary_error:
+                                print(f"DEBUG: Error getting order summary: {summary_error}")
+                                order_context_sections.append("- Order summary: Unable to retrieve data")
+
+                        if completed_requested:
+                            try:
+                                completed = await mcp_client.get_completed_orders_summary(user_id)
+                                if completed and not completed.get("error"):
+                                    order_context_sections.append(
+                                        "- Completed orders: {count} orders, {items} items, total {total:,} VND".format(
+                                            count=completed.get("completed_orders", 0),
+                                            items=completed.get("completed_items", 0),
+                                            total=completed.get("completed_value", 0) or 0
+                                        )
+                                    )
+                                else:
+                                    order_context_sections.append("- Completed orders: No data available")
+                            except Exception as completed_error:
+                                print(f"DEBUG: Error getting completed orders summary: {completed_error}")
+                                order_context_sections.append("- Completed orders: Unable to retrieve data")
+
+                        if recent_requested:
+                            try:
+                                recent = await mcp_client.get_recent_orders(user_id, 5)
+                                print(f"DEBUG: Recent orders data: {recent}")
+                                if recent and not recent.get("error"):
+                                    orders = recent.get("recent_orders", []) or []
+                                    if orders:
+                                        recent_lines = [
+                                            "- Recent orders:"
+                                        ]
+                                        for order in orders[:3]:
+                                            recent_lines.append(
+                                                f"  * {order.get('order_id', 'N/A')} ({order.get('status', 'unknown')}) - {order.get('total_value', 0):,} VND"
+                                            )
+                                        order_context_sections.append("\n".join(recent_lines))
+                                    else:
+                                        order_context_sections.append("- Recent orders: No recent orders found")
+                                else:
+                                    order_context_sections.append("- Recent orders: No data available")
+                            except Exception as recent_error:
+                                print(f"DEBUG: Error getting recent orders: {recent_error}")
+                                order_context_sections.append("- Recent orders: Unable to retrieve data")
+
+                        if latest_requested and not recent_requested:
+                            try:
+                                latest = await mcp_client.get_latest_order(user_id)
+                                latest_data = latest.get("latest_order") if latest else None
+                                if latest_data and not latest.get("error"):
+                                    order_context_sections.append(
+                                        "- Latest order: {order_id} ({items} items) {status} on {date} worth {value:,} VND".format(
+                                            order_id=latest_data.get("order_id", "N/A"),
+                                            items=latest_data.get("item_count", 0),
+                                            status="completed" if latest_data.get("is_completed") else "in progress",
+                                            date=(latest_data.get("created_at") or "")[:10],
+                                            value=latest_data.get("total_value", 0) or 0
+                                        )
+                                    )
+                                else:
+                                    order_context_sections.append("- Latest order: No data available")
+                            except Exception as latest_error:
+                                print(f"DEBUG: Error getting latest order: {latest_error}")
+                                order_context_sections.append("- Latest order: Unable to retrieve data")
+
+                        if highest_value_requested:
+                            try:
+                                highest = await mcp_client.get_highest_value_order(user_id)
+                                highest_data = highest.get("highest_value_order") if highest else None
+                                if highest_data and not highest.get("error"):
+                                    order_context_sections.append(
+                                        "- Highest value order: {order_id} worth {value:,} VND ({items} items)".format(
+                                            order_id=highest_data.get("order_id", "N/A"),
+                                            value=highest_data.get("total_value", 0) or 0,
+                                            items=highest_data.get("item_count", 0)
+                                        )
+                                    )
+                                else:
+                                    order_context_sections.append("- Highest value order: No data available")
+                            except Exception as highest_error:
+                                print(f"DEBUG: Error getting highest value order: {highest_error}")
+                                order_context_sections.append("- Highest value order: Unable to retrieve data")
+
+                        if lowest_value_requested:
+                            try:
+                                lowest = await mcp_client.get_lowest_value_order(user_id)
+                                lowest_data = lowest.get("lowest_value_order") if lowest else None
+                                if lowest_data and not lowest.get("error"):
+                                    order_context_sections.append(
+                                        "- Lowest value order: {order_id} worth {value:,} VND ({items} items)".format(
+                                            order_id=lowest_data.get("order_id", "N/A"),
+                                            value=lowest_data.get("total_value", 0) or 0,
+                                            items=lowest_data.get("item_count", 0)
+                                        )
+                                    )
+                                else:
+                                    order_context_sections.append("- Lowest value order: No data available")
+                            except Exception as lowest_error:
+                                print(f"DEBUG: Error getting lowest value order: {lowest_error}")
+                                order_context_sections.append("- Lowest value order: Unable to retrieve data")
+
+                        if average_value_requested:
+                            try:
+                                average = await mcp_client.get_average_order_value(user_id)
+                                if average and not average.get("error"):
+                                    order_context_sections.append(
+                                        "- Average order value: {value:,} VND".format(
+                                            value=average.get("average_order_value", 0) or 0
+                                        )
+                                    )
+                                else:
+                                    order_context_sections.append("- Average order value: No data available")
+                            except Exception as average_error:
+                                print(f"DEBUG: Error getting average order value: {average_error}")
+                                order_context_sections.append("- Average order value: Unable to retrieve data")
+
+                        if order_context_sections:
+                            order_context = "\nOrder Information:\n" + "\n".join(order_context_sections)
                             context = (context or "") + order_context
                         else:
-                            context = (context or "") + "\nOrder Information: No order data available for this user."
-                        
-                        # Keep the MCP client alive for reuse within the same event loop
-                        
+                            # Fallback to dashboard if no specific tool matched the query intent
+                            order_dashboard = await mcp_client.get_user_order_dashboard(user_id)
+                            if order_dashboard and "dashboard" in order_dashboard:
+                                dashboard_data = order_dashboard["dashboard"]
+                                order_context = f"\nOrder Information:\n"
+                                order_context += f"- Pending orders: {dashboard_data.get('pending_orders', {}).get('count', 0)}\n"
+                                order_context += f"- Unpaid amount: {dashboard_data.get('financial', {}).get('unpaid_amount', 0):,} VND\n"
+                                order_context += f"- Upcoming deliveries (7 days): {dashboard_data.get('deliveries', {}).get('upcoming_7_days', 0)}\n"
+
+                                recent_orders = dashboard_data.get('recent_orders', [])
+                                if recent_orders:
+                                    order_context += f"- Recent orders:\n"
+                                    for order in recent_orders[:3]:
+                                        order_context += f"  * {order.get('order_id', 'N/A')} ({order.get('status', 'unknown')}) - {order.get('total_value', 0):,} VND\n"
+
+                                context = (context or "") + order_context
+                            else:
+                                context = (context or "") + "\nOrder Information: No order data available for this user."
+
                     except Exception as order_error:
                         print(f"DEBUG: Error getting order context: {order_error}")
                         context = (context or "") + f"\nOrder Information: Unable to retrieve order data (Error: {str(order_error)})"
@@ -278,32 +615,10 @@ class Rag:
                 
             except Exception as e:
                 print(f"Error getting user context: {e}")
-                return f"User ID: {get_current_user_id() if 'get_current_user_id' in globals() else 'unknown'}"
-        
-        def get_user_context(inputs: dict) -> str:
-            """Sync wrapper for user context retrieval"""
-            try:
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        user_id = get_current_user_id()
-                        return f"User ID: {user_id}"
-                    else:
-                        return loop.run_until_complete(get_user_context_async(inputs))
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    try:
-                        return loop.run_until_complete(get_user_context_async(inputs))
-                    finally:
-                        loop.close()
-                        
-            except Exception as e:
-                print(f"Error in sync user context wrapper: {e}")
                 try:
                     user_id = get_current_user_id()
                     return f"User ID: {user_id}"
-                except:
+                except Exception:
                     return "User context unavailable"
         
         def ensureContextualize(input_: dict):
@@ -319,7 +634,7 @@ class Rag:
                 
         rag_chain = ( RunnableLambda(ensureContextualize).with_config({"run_name":"ContextualizationCheck"}) 
                     | RunnablePassthrough.assign(context = format_docs).with_config({"run_name":"QueryDocuments"})
-                    | RunnablePassthrough.assign(user_context = RunnableLambda(get_user_context)).with_config({"run_name":"GetUserContext"})
+                    | RunnablePassthrough.assign(user_context = RunnableLambda(get_user_context_async)).with_config({"run_name":"GetUserContext"})
                     | self.prompt_template 
                     | llm 
                     | self.output_formatter
