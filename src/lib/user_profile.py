@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Set
@@ -6,7 +7,7 @@ from pathlib import Path
 import chainlit as cl
 from pydantic import BaseModel, Field
 
-from lib.mcp_client import MCPClient, UserProfile, get_mcp_client
+from lib.mcp_client import MCPClient, UserProfile, get_mcp_client, close_mcp_client
 
 
 class UserSession(BaseModel):
@@ -28,14 +29,31 @@ class UserProfileManager:
         self.cache_dir.mkdir(exist_ok=True)
         self._session_cache = {}
         self._mcp_client: Optional[MCPClient] = None
+        self._mcp_loop: Optional[asyncio.AbstractEventLoop] = None
     
     async def initialize(self):
         """Initialize MCP client"""
+        await self._get_mcp_client()
+
+    async def _get_mcp_client(self) -> Optional[MCPClient]:
         try:
-            self._mcp_client = await get_mcp_client()
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return None
+
+        if self._mcp_client and self._mcp_loop is loop:
+            return self._mcp_client
+
+        try:
+            client = await get_mcp_client()
+            self._mcp_client = client
+            self._mcp_loop = loop
+            return client
         except Exception as e:
             print(f"Warning: Could not initialize MCP client: {e}")
             self._mcp_client = None
+            self._mcp_loop = None
+            return None
     
     async def get_or_create_session(self, user_identifier: str, session_id: str) -> UserSession:
         """Get or create user session with MCP profile data"""
@@ -58,9 +76,10 @@ class UserProfileManager:
         )
         
         # Try to enrich with MCP data
-        if self._mcp_client:
+        mcp_client = await self._get_mcp_client()
+        if mcp_client:
             try:
-                profile = await self._mcp_client.get_user_profile(user_identifier)
+                profile = await mcp_client.get_user_profile(user_identifier)
                 if profile:
                     session.profile = profile
                     session.preferences = profile.preferences
@@ -104,9 +123,10 @@ class UserProfileManager:
         preferences = {}
         
         # Try MCP first
-        if self._mcp_client:
+        mcp_client = await self._get_mcp_client()
+        if mcp_client:
             try:
-                mcp_preferences = await self._mcp_client.get_user_preferences(user_identifier, keys)
+                mcp_preferences = await mcp_client.get_user_preferences(user_identifier, keys)
                 preferences.update(mcp_preferences)
             except Exception as e:
                 print(f"Could not fetch MCP preferences: {e}")
@@ -149,9 +169,10 @@ class UserProfileManager:
                 context_parts.append(f"User preferences: {prefs_str}")
             
             # Add balance information for authenticated users
-            if user_identifier != "anonymous" and self._mcp_client:
+            mcp_client = await self._get_mcp_client()
+            if user_identifier != "anonymous" and mcp_client:
                 try:
-                    balance_result = await self._mcp_client.query_user_data(
+                    balance_result = await mcp_client.query_user_data(
                         user_identifier, 
                         "balance điểm 02 information"
                     )
@@ -160,8 +181,8 @@ class UserProfileManager:
                         if 'balance' in balance_info and balance_info['balance']:
                             balance_data = balance_info['balance']
                             context_parts.append(
-                                f"User's balance: {balance_data['formatted']} điểm 02, "
-                                f"{balance_data['points_formatted']} points"
+                                f"User's balance: {balance_data['formatted']} VNĐ, "
+                                f"{balance_data['points_formatted']} điểm O2"
                             )
                 except Exception as e:
                     print(f"Could not fetch balance info: {e}")
@@ -183,11 +204,12 @@ class UserProfileManager:
     
     async def query_user_data(self, user_identifier: str, query: str) -> Optional[Dict[str, Any]]:
         """Query user data using natural language via MCP"""
-        if not self._mcp_client:
+        mcp_client = await self._get_mcp_client()
+        if not mcp_client:
             return None
         
         try:
-            return await self._mcp_client.query_user_data(user_identifier, query)
+            return await mcp_client.query_user_data(user_identifier, query)
         except Exception as e:
             print(f"Error querying user data: {e}")
             return None
@@ -248,8 +270,19 @@ class UserProfileManager:
                 print(f"Error cleaning cache file {cache_file}: {e}")
     
     async def close(self):
-        if self._mcp_client:
-            await self._mcp_client.close()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if self._mcp_client and self._mcp_loop is loop:
+            try:
+                await close_mcp_client()
+            except Exception as e:
+                print(f"Error closing MCP client: {e}")
+            finally:
+                self._mcp_client = None
+                self._mcp_loop = None
 
 
 _user_profile_manager: Optional[UserProfileManager] = None

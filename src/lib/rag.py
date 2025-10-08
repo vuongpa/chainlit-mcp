@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 
 from lib.core import ChatSettings
 from lib.user_profile import get_user_profile_manager, get_current_user_id, get_current_session_id
+from lib.mcp_client import get_mcp_client
 
 LLMS = Enum("LLMS", ["OPENAI", "ANTROPHIC", "OLLAMA"])
 EMBEDDINGS = Enum("EMBEDDINGS", ["openai", "huggingface"])
@@ -189,11 +190,22 @@ class Rag:
                 # Check if query is about orders and get order info if needed
                 query_text = inputs.get("input", "").lower()
                 order_keywords = ["đơn hàng", "order", "giao hàng", "delivery", "vận chuyển", "ship", "thanh toán", "payment", "sắp giao", "chờ giao", "pending"]
-                
+                balance_keywords = [
+                    "số dư",
+                    "balance",
+                    "điểm o2",
+                    "điểm 02",
+                    "o2 points",
+                    "balance điểm",
+                    "điểm thưởng",
+                    "tài khoản",
+                    "points balance",
+                    "ví"
+                ]
+
                 if any(keyword in query_text for keyword in order_keywords):
                     try:
                         print(f"DEBUG: Query about orders detected, getting order context...")
-                        from lib.mcp_client import get_mcp_client
                         mcp_client = await get_mcp_client()
                         
                         # Get order dashboard for user
@@ -221,6 +233,45 @@ class Rag:
                     except Exception as order_error:
                         print(f"DEBUG: Error getting order context: {order_error}")
                         context = (context or "") + f"\nOrder Information: Unable to retrieve order data (Error: {str(order_error)})"
+
+                if any(keyword in query_text for keyword in balance_keywords):
+                    try:
+                        print(f"DEBUG: Query about balance detected, getting balance context...")
+                        mcp_client = await get_mcp_client()
+                        balance_result = await mcp_client.query_user_data(
+                            user_id,
+                            "balance điểm 02 information"
+                        )
+
+                        balance_context = "\nAccount Balance Information:\n"
+                        result_payload = balance_result.get("result") if balance_result else None
+                        balance_payload = result_payload.get("balance") if isinstance(result_payload, dict) else None
+
+                        if isinstance(balance_payload, dict):
+                            formatted_balance = balance_payload.get("formatted")
+                            points_formatted = balance_payload.get("points_formatted")
+                            raw_value = balance_payload.get("value") or balance_payload.get("amount")
+                            raw_points = balance_payload.get("points")
+
+                            if formatted_balance:
+                                balance_context += f"- Available balance: {formatted_balance}\n"
+                            elif raw_value is not None:
+                                balance_context += f"- Available balance: {raw_value}\n"
+
+                            if points_formatted:
+                                balance_context += f"- Loyalty points: {points_formatted}\n"
+                            elif raw_points is not None:
+                                balance_context += f"- Loyalty points: {raw_points}\n"
+
+                            if balance_context.strip() == "Account Balance Information:":
+                                balance_context += "- No detailed balance fields provided.\n"
+                        else:
+                            balance_context += "- No balance data available for this user.\n"
+
+                        context = (context or "") + balance_context
+                    except Exception as balance_error:
+                        print(f"DEBUG: Error getting balance context: {balance_error}")
+                        context = (context or "") + f"\nAccount Balance Information: Unable to retrieve balance data (Error: {str(balance_error)})"
                 
                 print(f"DEBUG: Retrieved MCP context: {context}")
                 return context if context else f"User ID: {user_id}"

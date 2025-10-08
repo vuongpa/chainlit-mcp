@@ -2,14 +2,14 @@
   "mcp_servers": [
     {
       "name": "user_profile_balance_server",
-      "command": "/Users/vuong/Documents/Workspace/chatbot-with-rag/.venv/bin/python",
-      "args": ["/Users/vuong/Documents/Workspace/chatbot-with-rag/mcp_user_server.py"],
+      "command": "python3",
+      "args": ["mcp_user_server.py"],
       "env": {}
     },
     {
       "name": "user_order_server",
-      "command": "/Users/vuong/Documents/Workspace/chatbot-with-rag/.venv/bin/python",
-      "args": ["/Users/vuong/Documents/Workspace/chatbot-with-rag/mcp_order_server.py"],
+      "command": "python3",
+      "args": ["mcp_order_server.py"],
       "env": {}
     }
   ]
